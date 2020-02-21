@@ -163,16 +163,16 @@ all:
 	@echo "***** Acoustics Toolbox built *****"
 	@echo "***********************************"
 
-#install:
-#	(cd Bellhop;	make -k install)
-#	(cd Kraken;	make -k install)
-#	(cd KrakenField;        make -k install)
-	#(cd Krakel;	make -k install)
-#	(cd Scooter;	make -k install)
-#	@echo " "
-#	@echo "***************************************"
-#	@echo "***** Acoustics Toolbox installed *****"
-#	@echo "***************************************"
+install:
+	(cd Bellhop;	make -k install)
+	(cd Kraken;	make -k install)
+	(cd KrakenField;        make -k install)
+#(cd Krakel;	make -k install)
+	(cd Scooter;	make -k install)
+	@echo " "
+	@echo "***************************************"
+	@echo "***** Acoustics Toolbox installed *****"
+	@echo "***************************************"
 
 clean:
 	-rm -f bin/*.exe
