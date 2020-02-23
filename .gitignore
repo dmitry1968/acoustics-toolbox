@@ -39,3 +39,4 @@ doc/
 Matlab/
 *.pdf
 tests/
+bin/

@@ -164,6 +164,7 @@ all:
 	@echo "***********************************"
 
 install:
+	-mkdir -p bin
 	(cd Bellhop;	make -k install)
 	(cd Kraken;	make -k install)
 	(cd KrakenField;        make -k install)
