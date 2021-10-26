@@ -41,7 +41,7 @@
 # choose the best architecture (target machine) using the -x switch
 
 # need -heap-arrays to avoid stack overflows for big runs ...
-export FC=ifort
+export FC?=ifort
 # export FFLAGS= -O3 -parallel -axSSE4.2 -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc
 export FFLAGS= -fast              -parallel -axAVX -nologo              -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc
 export FFLAGS= -O3 -funroll-loops -parallel -no-prec-div -axAVX -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc
@@ -86,7 +86,7 @@ export FFLAGS= -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I
 # At one time that was necessary to get the AVX operations; however, I saw no speed benefit
 # -march=corei7-avx works on my Mac
 
-export FC=gfortran
+export FC?=gfortran
 
 # export FFLAGS= -march=native -Wall -std=gnu -O2 -I../misc
 # export FFLAGS= -mtune=generic -Wall -std=gnu -O3 -I../misc
@@ -139,7 +139,7 @@ export FFLAGS= -march=native -Bstatic -Waliasing -Wampersand -Wsurprising -Wintr
 # ______________________________________________________________________________
 
 export RM=rm
-export CC=gcc
+export CC?=gcc
 export CFLAGS=-g
 
 # KRAKEL is commented out below because it requires the LAPACK library.
