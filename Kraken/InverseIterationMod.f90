@@ -32,8 +32,10 @@ MODULE InverseIterationMod
 
   !        RV1, RV2, RV3, RV4, and EigenVector are temporary storage arrays.      
 
-  INTEGER,           PARAMETER :: MAXIT = 1
-  INTEGER                      :: I, ITER
+  IMPLICIT NONE
+  INTEGER, PARAMETER :: MAXIT = 1
+  INTEGER            :: I, ITER
+  REAL    (KIND=8)   :: EPS3, EPS4, NORM
 
   INTERFACE inverseiteration
      MODULE PROCEDURE inverseiterationD, inverseiterationZ
@@ -44,12 +46,11 @@ CONTAINS
   SUBROUTINE InverseIterationD( N, D, E, IERR, EigenVector ) 
 
     ! double precision, real version
-    IMPLICIT NONE
     INTEGER,       INTENT(  IN ) :: N
     INTEGER,       INTENT( OUT ) :: IERR
     REAL (KIND=8), INTENT(  IN ) :: D( N ), E( N + 1 )
     REAL (KIND=8), INTENT( OUT ) :: EigenVector( N )
-    REAL (KIND=8)                :: EPS3, EPS4, NORM, U, UK, V, XU
+    REAL (KIND=8)                :: U, UK, V, XU
     REAL (KIND=8)                :: RV1( N ), RV2( N ), RV3( N ), RV4( N )
 
     IERR = 0 
@@ -141,12 +142,11 @@ CONTAINS
 
     ! double precision, complex version
     
-    IMPLICIT NONE
     INTEGER,          INTENT(  IN ) :: N
     INTEGER,          INTENT( OUT ) :: IERR
     COMPLEX (KIND=8), INTENT(  IN ) :: D( N ), E( N + 1 )
     COMPLEX (KIND=8), INTENT( OUT ) :: EigenVector( N )
-    REAL    (KIND=8)                :: EPS3, EPS4, NORM, UK
+    REAL    (KIND=8)                :: UK
     COMPLEX (KIND=8)                :: U, V, XU
     COMPLEX (KIND=8)                :: RV1( N ), RV2( N ), RV3( N ), RV4( N )
 
@@ -155,7 +155,7 @@ CONTAINS
     ! Compute (infinity) norm of matrix
     ! (this could be pre-calculated for addl speed ...)
     NORM = SUM( ABS( REAL( D          ) ) ) + SUM( ABS( AIMAG( D          ) ) )  + &
-         &    SUM( ABS( REAL( E( 2 : N ) ) ) ) + SUM( ABS( AIMAG( E( 2 : N ) ) ) )
+      &    SUM( ABS( REAL( E( 2 : N ) ) ) ) + SUM( ABS( AIMAG( E( 2 : N ) ) ) )
 
     ! added a factor of 100 below because some Scholte modes weren't getting amplified enough
     ! mbp: 8/2010

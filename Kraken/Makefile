@@ -1,13 +1,13 @@
 
 EXECUTABLES = bounce.exe kraken.exe krakenc.exe
 
-BOUNCE_OBJECTS = bounce.o BCImpedancec.o KrakencMod.o kuping.o ../misc/libmisc.a
+BOUNCE_OBJECTS = KrakencMod.o  BCImpedancecMod.o                                 Scattering.o bounce.o ../misc/libmisc.a
 BOUNCE_LIBS = -L../misc -lmisc
 
-KRAKEN_OBJECTS = BCImpedance.o KrakenMod.o kuping.o InverseIterationMod.o RootFinderSecantMod.o zbrentx.o kraken.o ../misc/libmisc.a
+KRAKEN_OBJECTS = KrakenMod.o   BCImpedanceMod.o  InverseIterationMod.o RootFinderBrent.o Scattering.o kraken.o ../misc/libmisc.a
 KRAKEN_LIBS = -L../misc -lmisc
 
-KRAKENC_OBJECTS = BCImpedancec.o KrakencMod.o kuping.o InverseIterationMod.o RootFinderSecantMod.o krakenc.o ../misc/libmisc.a
+KRAKENC_OBJECTS = KrakencMod.o BCImpedancecMod.o InverseIterationMod.o           Scattering.o krakenc.o ../misc/libmisc.a
 KRAKENC_LIBS = -L../misc -lmisc
 
 all: $(EXECUTABLES)
@@ -50,25 +50,26 @@ krakenc.exe: $(KRAKENC_OBJECTS)
 InverseIterationMod.o inverseiterationmod.mod: InverseIterationMod.f90
 	$(FC) -c $(FFLAGS) $<
 
-RootFinderSecant.o rootfindersecant.mod: RootFinderSecantMod.f90
-	$(FC) -c $(FFLAGS) $< 
-
 KrakenMod.o krakenmod.mod: KrakenMod.f90
 	$(FC) -c $(FFLAGS) $< 
 
 KrakencMod.o krakencmod.mod: KrakencMod.f90
 	$(FC) -c $(FFLAGS) $< 
 
-BCImpedance.o: krakenmod.mod BCImpedance.f90
-BCImpedancec.o: krakencmod.mod BCImpedancec.f90
+BCImpedanceMod.o BCImpedanceMod.mod: BCImpedanceMod.f90
+	$(FC) -c $(FFLAGS) $< 
+
+BCImpedancecMod.o BCImpedancecMod.mod: BCImpedancecMod.f90
+	$(FC) -c $(FFLAGS) $< 
 
 bounce.o: krakencmod.mod bounce.f90
-covar.o: covar.f90
 
 kraken.o:  krakenmod.mod  kraken.f90
+
 krakenc.o: krakencmod.mod krakenc.f90
 
-kuping.o: kuping.f90
-zbrentx.o: zbrentx.f90
+Scattering.o: Scattering.f90
+
+RootFinderBrent.o rootfinderbrent.mod: RootFinderBrent.f90
 
 

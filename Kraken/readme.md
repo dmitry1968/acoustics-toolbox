@@ -1,4 +1,4 @@
-KRAKEN Normal modes for ocean acoustics
+#KRAKEN Normal modes for ocean acoustics
 
    Copyright (C) 2009 Michael B. Porter
 
@@ -546,3 +546,23 @@ as well as Fortran and Matlab routines that read those mode files.
 
 The KRAKEN Field routines have also been pulled out into a separate
 directory to organize things a bit more cleanly.
+
+September 2020
+A user found inconsistent results between the Fortran and Matlab
+version of field. This was because they had applied array tilt and the
+Matlab version does not have that implemented. (The Fortran version does.) A test was added so
+that that is flagged as an error.
+
+October 2020
+All the references to the Twersky ice scatter model have been
+removed from both the code and the documentation. This capability had
+fallen out of repair decades ago and (in my opinion)
+was of minimal value.
+
+At some point, perhaps two years ago, I broke the Matlab version of
+the coupled mode code. I had added code that interpolated the ranges
+of new profiles based on a first and last range. However, that was
+generally not appropriate. The Fortran version remained as the
+default. This problem has been fixed and both codes produces the same
+results. This corrects resutls from at/tests/Gulf and at/tests/step
+when using the Matlab coupled mode code.
