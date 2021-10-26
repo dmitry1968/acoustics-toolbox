@@ -9,13 +9,13 @@ PROGRAM ISO
   COMPLEX   ST
   CHARACTER PULSE*4, PULSTITL*80
 
-  C0    = 1500.0   ! REFERENCE SOUND SPEED
-  PULSE = 'P   '   ! PULSE TYPE
+  C0    = 1500.0   ! Reference soundspeed
+  PULSE = 'P   '   ! Pulse type
   FREQ  = 50.0
   FMIN  =   0.0
   FMAX  =  10.0 * FREQ
   OMEGA =   2.0 * PI * FREQ
-  R     =  200.0   ! RANGE IN METERS
+  R     =  200.0   ! Range in meters
 
   TMIN = 0.0
   TMAX = 1.0
@@ -36,15 +36,15 @@ PROGRAM ISO
      SLANTR = SQRT( RD( IR ) ** 2 + R ** 2 )
      DO IT = 1, NT
         TIME = TMIN + ( IT - 1 ) * DELT
-        T = TIME - SLANTR / C0    ! THIS IS REDUCED TIME
+        T = TIME - SLANTR / C0    ! Reduced time
 
-        !  --- calculate the source time series
+        !  calculate the source time series
 
         CALL SOURCE( T, ST, SD, NSD, NT, OMEGA, FMIN, FMAX, PULSE, PULSTITL )
 
         STACK( IR, IT ) = -ST / SLANTR
-     END DO   ! NEXT TIME
-  END DO  ! NEXT DEPTH
+     END DO   ! Next TIME
+  END DO  ! Next depth
 
   ! Write out the stack
 

@@ -8,7 +8,7 @@ ARFLAGS = r
 
 RANLIB = ranlib
 
-OBJECTS = bndpasc.o cans.o cfft.o hilbert.o preenv.o rfft.o source.o
+OBJECTS = bandpassc.o cans.o cfft.o hilbert.o preenv.o rfft.o sourceMod.o
 
 all: $(OBJECTS) libts.a
 
@@ -37,12 +37,14 @@ libts.a: $(OBJECTS)
 	$(RANLIB) $@
 	@echo "Routines needed for time series library built"
 
-bndpasc.o: bndpasc.f90
+bandpassc.o: bandpassc.f90
 cans.o: cans.f90
 cfft.o: cfft.f90
 hilbert.o: hilbert.f90
 iso.o: iso.f90
 preenv.o: preenv.f90
 rfft.o: rfft.f90
-source.o: source.f90
+#source.o: source.f90
 
+sourceMod.o sourcemod.mod: sourceMod.f90
+	$(FC) -c $(FFLAGS) $< 

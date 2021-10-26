@@ -1,10 +1,13 @@
-SUBROUTINE BNDPAS( X, N, deltat, fmin, fmax )
+SUBROUTINE BandPass( X, N, deltat, fmin, fmax )
 
-  ! Band-pass filter of a complex time series
+  ! Band-pass filter of a complex time series, X( 1 : N )
+  ! deltat is the time step
+  ! fmin, fmax are the frequencies of the band
+  
   ! This version assumes time series was real and therefore filters symmetically
 
   REAL, PARAMETER :: PI = 3.141592, alpha = 0.54
-  COMPLEX X( N )
+  COMPLEX, INTENT( INOUT ) :: X( N )
 
   ! Compute indices for frequency band
 
@@ -15,17 +18,18 @@ SUBROUTINE BNDPAS( X, N, deltat, fmin, fmax )
   ! Quick exit if full band is passed:
   IF ( iMin <= 1 .AND. iMax >= N / 2 + 1 ) RETURN
 
-  ! Check N is a power of 2
-  IF ( N <= 0 ) STOP 'FATAL ERROR in BNDPAS: N must be positive'
+  ! Check N is positive and a power of 2
+  IF ( N <= 0 ) STOP 'FATAL ERROR in BandPass: N must be positive'
+  
   NT = 2**( INT( LOG10( REAL( N ) ) / 0.30104 ) + 1 )
-  IF ( NT /= N ) STOP 'FATAL ERROR in BNDPAS: N must be a power of 2'
+  IF ( NT /= N ) STOP 'FATAL ERROR in BandPass: N must be a power of 2'
 
   CALL CFFT( X, N, 1 )   ! forward transform
   X = X / N              ! scaling ...
 
   ! Zero out-of-band components (Hanning window)
 
-  DO I = 1, N/2 + 1
+  DO I = 1, N / 2 + 1
 
      IF ( I >= iMin .AND. I <= iMax ) THEN
         weight = alpha + ( 1.0 - alpha ) * COS( PI * ( I - 1 ) / ( iMax - 1 ) )
@@ -40,4 +44,4 @@ SUBROUTINE BNDPAS( X, N, deltat, fmin, fmax )
 
   CALL CFFT( X, N, -1 )   ! inverse transform
 
-END SUBROUTINE BNDPAS
+END SUBROUTINE BandPass
