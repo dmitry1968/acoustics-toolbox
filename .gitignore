@@ -40,3 +40,5 @@ Matlab/
 *.pdf
 tests/
 bin/
+*.swp
+*.swo
