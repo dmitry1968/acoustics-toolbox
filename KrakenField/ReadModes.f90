@@ -1,9 +1,11 @@
 MODULE ReadModes
 
+  USE PekRoot
+  USE FatalError
+
   IMPLICIT NONE
   INTEGER, PARAMETER, PRIVATE :: PRTFile = 6
-  INTEGER, PARAMETER          :: MODeFile = 30
-  INTEGER, PARAMETER          :: MaxN = 100001, MaxMedium = 501
+  INTEGER, PARAMETER, PRIVATE :: MODeFile = 30, MaxN = 100001, MaxMedium = 501, MaxNfreq = 1000
   REAL,    PARAMETER, PRIVATE :: pi = 3.141592
   INTEGER,            PRIVATE :: ir, iz
   COMPLEX,            PRIVATE :: kTop2, kBot2
@@ -22,7 +24,8 @@ CONTAINS
   !   The actual modes with one per record
   !   The eigenvalues, k, folded to fit the record length
 
-  INTEGER, PARAMETER     :: MaxNfreq = 1000
+  USE calculateweights
+
   INTEGER, INTENT( IN  ) :: IProf, ifreq        ! profile and frequency indices for the mode set
   INTEGER, INTENT( IN  ) :: MaxM                ! row dimension of PhiR in calling program
   INTEGER, INTENT( IN  ) :: Nrd                 ! number of receiver depths (where modes are sampled)
@@ -58,12 +61,12 @@ CONTAINS
   ! Abort if the storage is inadequate
   IF ( M > MaxM ) THEN 
      WRITE( PRTFile, * ) 'M = ', M, '   MaxM = ', MaxM
-     CALL ERROUT( PRTFile, 'F', 'ReadModeHeader', 'Insufficient storage to read all the modes: increase MaxM' )
+     CALL ERROUT( 'ReadModeHeader', 'Insufficient storage to read all the modes: increase MaxM' )
      M = MaxM
   ENDIF
 
   ! Read top and bottom halfspace info
-  READ( ModeFile, REC = IRecProfile + 1 ) BCTop(1:1), cPT, cST, rhoT, DepthT, BCBot(1:1), cPB, cSB, rhoB, DepthB
+  READ( ModeFile, REC = IRecProfile + 1 ) BCTop( 1 : 1 ), cPT, cST, rhoT, DepthT, BCBot( 1 : 1 ), cPB, cSB, rhoB, DepthB
 
   IF ( BCTop( 1 : 1 ) == 'A' ) kTop2 = ( 2.0 * pi * REAL( freqVec( ifreq ), KIND = 4 ) / cPT ) **2 
   IF ( BCBot( 1 : 1 ) == 'A' ) kBot2 = ( 2.0 * pi * REAL( freqVec( ifreq ), KIND = 4 ) / cPB ) **2
@@ -84,14 +87,14 @@ CONTAINS
         IF ( cST /= 0.0 .OR. BCTop( 1 : 1 ) /= 'A' ) THEN 
            WRITE( PRTFile, * ) 'Receiver depth: ', rd( ir )
            WRITE( PRTFile, * ) 'Highest valid depth: ', DepthT
-           CALL ERROUT( PRTFile, 'W', 'GetMode', 'Rcvr above depth of top' )
+           WRITE( PRTFile, * ) 'Warning in GetMode : Rcvr above depth of top'
         ENDIF
 
      ELSE IF ( rd( ir ) > DepthB ) THEN   ! Rcvr in lower halfspace
         IF ( cSB /= 0.0 .OR. BCBot( 1 : 1 ) /= 'A' ) THEN 
            WRITE( PRTFile, * ) 'Receiver depth: ', rd( ir )
            WRITE( PRTFile, * ) 'Lowest valid depth: ', DepthB
-           CALL ERROUT( PRTFile, 'W', 'GetMode', 'Rcvr below depth of bottom' )
+           WRITE( PRTFile, * ) 'Warning in GetMode : Rcvr below depth of bottom'
         ENDIF
 
      ELSE IF ( NTot > 1 ) THEN            ! Rcvr between two grid points or large extrapolation
@@ -99,13 +102,13 @@ CONTAINS
            WRITE( PRTFile, * ) 'Receiver depth: ', rd( ir )
            WRITE( PRTFile, * ) 'Nearest depths: ', Z( iz ), Z( iz + 1 )
            WRITE( PRTFile, * ) 'Tolerance: ', Tolerance 
-           CALL ERROUT( PRTFile, 'W', 'GetMode', 'Modes not tabulated near requested pt.' )
+           WRITE( PRTFile, * ) 'Warning in GetMode : Modes not tabulated near requested pt.'
         ENDIF
      ELSE                                 ! Rcvr near a single grid point
         IF ( ABS( rd( ir ) - Z( iz ) ) > Tolerance ) THEN 
            WRITE( PRTFile, * ) 'Rd, Tabulation depth ', rd( ir), Z( iz )
            WRITE( PRTFile, * ) 'Tolerance: ', Tolerance 
-           CALL ERROUT( PRTFile, 'W', 'GetMode', 'Modes not tabulated near requested pt.' )
+           WRITE( PRTFile, * ) 'Warning in GetMode : Modes not tabulated near requested pt.'
         ENDIF
      ENDIF
 
@@ -163,7 +166,7 @@ SUBROUTINE ReadModeHeader( FileRoot, IProf, IRecProfile, LRecl, Title, freqVec, 
           RECL = 100, IOSTAT = iostat )
      IF ( IOSTAT /= 0 ) THEN
         WRITE( PRTFile, * ) 'Mode file = ', FileNameT
-        CALL ERROUT( PrtFile, 'F', 'GetMode - ReadModeHeader', 'Unable to open the mode file' )
+        CALL ERROUT( 'GetMode - ReadModeHeader', 'Unable to open the mode file' )
      END IF
 
      READ( ModeFile, REC = 1 ) LRecL
@@ -180,7 +183,7 @@ SUBROUTINE ReadModeHeader( FileRoot, IProf, IRecProfile, LRecl, Title, freqVec, 
   ! Read header info
   READ( ModeFile, REC = IRecProfile     ) LRecL, Title( 1 : 80 ), Nfreq, NMedia, NTot, NMat
   READ( ModeFile, REC = IRecProfile + 1 ) ( N( Medium ), Material( Medium ), Medium = 1, NMedia)
-  READ( ModeFile, REC = IRecProfile + 2 ) ( Depth( Medium ), rho( Medium ), Medium = 1, NMedia )
+  READ( ModeFile, REC = IRecProfile + 2 ) ( Depth( Medium ), rho( Medium ),  Medium = 1, NMedia )
   READ( ModeFile, REC = IRecProfile + 3 ) freqVec( 1 : Nfreq )
   READ( ModeFile, REC = IRecProfile + 4 ) Z( 1 : NTot ) 
   IRecProfile = IRecProfile + 5
@@ -203,7 +206,7 @@ SUBROUTINE ReadWavenumbers( IRecProfile, ifreq, k, M, MaxM, LRecL )
 
   ! Read the number of modes, M
   DO ifreqT = 1, ifreq
-     IF ( ifreqT > 1 ) IRecProfile = IRecProfile + ( 2 + M + 1 + ( 2 * M - 1 ) / LRecl )   ! advance to appropriate record
+     IF ( ifreqT > 1 ) IRecProfile = IRecProfile + ( 3 + M + ( 2 * M - 1 ) / LRecl )   ! advance to appropriate record
      READ( ModeFile, REC = IRecProfile ) M
   END DO
 
@@ -236,7 +239,7 @@ SUBROUTINE ReadOneMode( Mode, IRecProfile, NTot, NMat, W, ird, N, Material, NMed
   LOGICAL           :: TufLuk 
   INTEGER           :: iMat
   COMPLEX           :: Phi( NMat ), gammaT = 0.0, gammaB = 0.0
-  COMPLEX  (KIND=8) :: PekerisRoot, gamma2
+  COMPLEX  (KIND=8) :: gamma2
 
   READ( ModeFile, REC = IRecProfile + 1 + Mode ) ( Phi( iMat ), iMat = 1, NMat ) 
 

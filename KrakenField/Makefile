@@ -1,10 +1,10 @@
 
 EXECUTABLES = field.exe field3d.exe
 
-FIELD_OBJECTS = field.o evaluate.o EvaluateADMod.o EvaluateCMMod.o ReadModes.o ../misc/libmisc.a
+FIELD_OBJECTS = ReadModes.o EvaluateMod.o EvaluateADMod.o EvaluateCMMod.o ../misc/libmisc.a field.o
 FIELD_LIBS = -L../misc -lmisc
 
-FIELD3D_OBJECTS = field3d.o ElementMod.o Evaluate3DMod.o EvaluateGBMod.o evaluatepdq.o ReadModes.o ../misc/libmisc.a
+FIELD3D_OBJECTS = ReadModes.o ElementMod.o Evaluate3DMod.o EvaluateGBMod.o EvaluatepdqMod.o ../misc/libmisc.a field3d.o 
 FIELD3D_LIBS = -L../misc -lmisc
 
 all: $(EXECUTABLES)
@@ -35,33 +35,29 @@ clean:
 
 # Declare explicit dependencies (and explicit build rules as needed)
 
+EvaluateMod.o evaluatemod: EvaluateMod.f90
+
+EvaluateCMMod.o evaluatecmmod.mod: readmodes.mod EvaluateCMMod.f90
+
+EvaluateADMod.o evaluateadmod.mod: readmodes.mod EvaluateADMod.f90
+
+EvaluatepdqMod.o evaluatepdqmod.mod: elementmod.mod EvaluatepdqMod.f90
+
+Evaluate3DMod.o evaluate3dmod.mod: Evaluate3DMod.f90
+
+EvaluateGBMod.o evaluategbmod.mod: EvaluateGBMod.f90
+
+ElementMod.o elementmod.mod: ElementMod.f90
+
+ReadModes.o readmodes.mod: ReadModes.f90
+	$(FC) -c $(FFLAGS) $<    # this rule is necessary, otherwise the make utility thinks *.mod is a modula file and uses m2c
+
+field.o:   ReadModes.mod evaluatemod.mod evaluateadmod.mod evaluatecmmod.mod field.f90
+
+field3d.o: ReadModes.mod elementmod.mod evaluate3dmod.mod evaluatepdqmod.mod evaluategbmod.mod field3d.f90
+
 field.exe: $(FIELD_OBJECTS)
 	$(FC) -o $@ $(FFLAGS) $(FIELD_OBJECTS) $(FIELD_LIBS)
 
-EvaluateCMMod.o evaluatecmmod.mod: EvaluateCMMod.f90
-	$(FC) -c $(FFLAGS) $<
-
-EvaluateADMod.o evaluateadmod.mod: EvaluateADMod.f90
-	$(FC) -c $(FFLAGS) $<
-
 field3d.exe: $(FIELD3D_OBJECTS)
 	$(FC) -o $@ $(FFLAGS) $(FIELD3D_OBJECTS) $(FIELD3D_LIBS)
-
-Evaluate3DMod.o evaluate3dmod.mod: Evaluate3DMod.f90
-	$(FC) -c $(FFLAGS) $<
-
-EvaluateGBMod.o evaluategbmod.mod: EvaluateGBMod.f90
-	$(FC) -c $(FFLAGS) $<
-
-ElementMod.o elementmod.mod: ElementMod.f90
-	$(FC) -c $(FFLAGS) $<
-
-ReadModes.o readmodes.mod: ReadModes.f90
-	$(FC) -c $(FFLAGS) $<
-
-evaluate.o: evaluate.f90
-evaluatepdq.o: elementmod.mod evaluatepdq.f90
-
-field.o:   readmodes.mod                evaluateadmod.mod evaluatecmmod.mod field.f90
-field3d.o: readmodes.mod elementmod.mod evaluate3dmod.mod evaluategbmod.mod field3d.f90
-

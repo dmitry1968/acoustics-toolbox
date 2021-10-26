@@ -1,4 +1,6 @@
 MODULE Evaluate3DMod
+
+  USE ElementMod 
   IMPLICIT NONE
 
 CONTAINS
@@ -9,10 +11,9 @@ CONTAINS
   ! Note RminM must be zero
   ! mike porter, 1987
 
-  USE ElementMod 
-  USE beampatternMod
-  USE interpMod
-  IMPLICIT NONE
+  USE BeamPattern
+  USE interpolation
+
   INTEGER, PARAMETER    :: KBarFile = 55, ZBarFile = 56
   REAL,    PARAMETER    :: pi = 3.141592, DegRad = pi / 180.0, RadDeg = 180.0 / pi
   COMPLEX, PARAMETER    :: i  = ( 0.0, 1.0 )
@@ -22,7 +23,7 @@ CONTAINS
   REAL,    INTENT( IN ) :: theta( Ntheta )                 ! bearing angles for receivers
   COMPLEX, INTENT( IN ) :: k( maxM, * )                    ! wavenumbers
   COMPLEX, INTENT( OUT) :: P( Ntheta, Nr )                 ! pressure field
-  INTEGER               :: iElement, ir, Itheta, L, MProp, NewElement, Outside
+  INTEGER               :: iElement, ir, itheta, L, MProp, NewElement, Outside
   REAL                  :: tsx, tsy                        ! tangent vector from source
   REAL                  :: RminM, RmaxM                    ! minimum and maximum receiver ranges in m
   REAL                  :: alpha, delta_r, Rin, Rout, RM
@@ -40,13 +41,13 @@ CONTAINS
 
   !  *** Loop over angle ***                                           
 
-  Bearing: DO Itheta = 1, Ntheta 
-     tsx = COS( DegRad * theta( Itheta ) )
-     tsy = SIN( DegRad * theta( Itheta ) ) 
+  Bearing: DO itheta = 1, Ntheta 
+     tsx = COS( DegRad * theta( itheta ) )
+     tsy = SIN( DegRad * theta( itheta ) ) 
 
      ! Get modal values
      iElement = IElementSource 
-     ! WRITE( *, * ) 'Tracing bearing ', Itheta, ATAN2( tsy, tsx ) / DegRad
+     ! WRITE( *, * ) 'Tracing bearing ', itheta, ATAN2( tsy, tsx ) / DegRad
 
      CALL SourceElement( iElement, Outside, RIn, ROut, xs, ys, tsx, tsy, MProp, M, maxM, &
           k, PhiR, PhiS, const, kIn, PhiIn, kOut, PhiOut )
@@ -54,14 +55,14 @@ CONTAINS
 
      IF ( MProp > 0 ) THEN   ! any propagating modes at the source?
         ! write modes at first range                                 
-        ! IF ( Itheta == 1 ) THEN 
+        ! IF ( itheta == 1 ) THEN 
         !    WRITE( ZBarFile, * ) MProp 
         !    WRITE( ZBarFile, * ) const( 1 : MProp ) 
         ! END IF
 
         ! apply the source beam pattern
         ! using kIn for wavenumber; would be more precise to use interpolated value at source
-        IF ( SBPFlag == '*' .AND. Itheta == 1 ) THEN
+        IF ( SBPFlag == '*' .AND. itheta == 1 ) THEN
            ALLOCATE( kz2( MProp ), thetaT( MProp ), S( MProp ) )
            c0    = 1500   ! reference sound speed, should be speed at the source depth
            omega = 2 * pi * freq
@@ -118,7 +119,7 @@ CONTAINS
               ! IF ( ir == Nr ) WRITE( ZBarFile, * ) PhiInt  ! write mode at last range     
            END DO Mode
 
-           P( Itheta, ir ) = CMPLX( T / SQRT( RM ) )
+           P( itheta, ir ) = CMPLX( T / SQRT( RM ) )
 
         END DO RangeStepping
 
@@ -142,8 +143,6 @@ SUBROUTINE SourceElement( iElement, Outside, RIn, ROut, xs, ys, tsx, tsy, MProp,
   ! Given an element number for the source                            
   ! Computes modal information
 
-  USE ElementMod
-  IMPLICIT NONE
   INTEGER, INTENT( IN  ) :: M( * ), maxM                                ! number of modes
   REAL,    INTENT( IN  ) :: xs, ys, tsx, tsy                            ! source coordinates, radial tangent
   COMPLEX, INTENT( IN  ) :: PhiS( maxM, * ), PhiR( maxM, * )            ! mode shapes
@@ -156,7 +155,7 @@ SUBROUTINE SourceElement( iElement, Outside, RIn, ROut, xs, ys, tsx, tsy, MProp,
   COMPLEX, INTENT( OUT ) :: Const( * )              ! interpolated mode excitation coefficients
   INTEGER :: Inside, IBad, IGood1, IGood2, &
              iCorner1, iCorner2, iCorner3, iCorner4, iElement, &
-             ISide, Iset1, Iset2, L, node1, node2
+             iSide, iSet1, iSet2, L, node1, node2
   REAL    :: R,  RV( 3 ), SV( 3 ), RVC( 3 ), SIn, SOut, x1S, y1S, xCenter, yCenter, &
              Delta, tx, ty, txC, tyC, alpha
 
@@ -167,13 +166,13 @@ SUBROUTINE SourceElement( iElement, Outside, RIn, ROut, xs, ys, tsx, tsy, MProp,
   xCenter = SUM( x( node( 1 : 3, iElement ) ) ) / 3.0
   yCenter = SUM( y( node( 1 : 3, iElement ) ) ) / 3.0 
 
-  Side: DO ISide = 1, 3 
+  Side: DO iSide = 1, 3 
 
-     node1 = node( iCorner( ISide, 1 ), iElement )
-     node2 = node( iCorner( ISide, 2 ), iElement )
-     Iset1 = Iset( node1 )
-     Iset2 = Iset( node2 ) 
-     MProp = MIN( MProp, M( Iset1 ), M( Iset2 ) ) 
+     node1 = node( iCorner( iSide, 1 ), iElement )
+     node2 = node( iCorner( iSide, 2 ), iElement )
+     iSet1 = iSet( node1 )
+     iSet2 = iSet( node2 ) 
+     MProp = MIN( MProp, M( iSet1 ), M( iSet2 ) ) 
 
      x1S = x( node1 ) - xs
      y1S = y( node1 ) - ys
@@ -187,11 +186,11 @@ SUBROUTINE SourceElement( iElement, Outside, RIn, ROut, xs, ys, tsx, tsy, MProp,
      ! *** Radial parallel to side? ***                               
 
      IF ( Delta == 0.0 ) THEN 
-        SV(  ISide ) = HUGE( SV( ISide ) )
+        SV(  iSide ) = HUGE( SV( iSide ) )
      ELSE 
-        RVC( ISide ) = ( txC * ty  - tyC * tx  ) / Delta 
-        RV(  ISide ) = ( x1S * ty  - y1S * tx  ) / Delta 
-        SV(  ISide ) = ( x1S * tsy - y1S * tsx ) / Delta 
+        RVC( iSide ) = ( txC * ty  - tyC * tx  ) / Delta 
+        RV(  iSide ) = ( x1S * ty  - y1S * tx  ) / Delta 
+        SV(  iSide ) = ( x1S * tsy - y1S * tsx ) / Delta 
      ENDIF
   END DO Side
 
@@ -227,7 +226,7 @@ SUBROUTINE SourceElement( iElement, Outside, RIn, ROut, xs, ys, tsx, tsy, MProp,
   SOut     = MIN( MAX( SOut, 0.0 ), 1.0 ) 
   ROut     = RV( Outside ) 
 
-  ! Get values of modes at Z = SD and (x, y) = intercept points   
+  ! Get values of modes at Z = sz and (x, y) = intercept points   
 
   iCorner1 = iCorner(  Inside, 1 )
   iCorner2 = iCorner(  Inside, 2 ) 
@@ -264,8 +263,6 @@ SUBROUTINE OUT( iElement, NewElement, Outside, ROut, xs, ys, tsx, tsy, MProp, M,
   ! Given an element number and a side through which prop path enters
   ! computes mode info at exit point
 
-  USE ElementMod
-  IMPLICIT NONE
   INTEGER, INTENT( IN  ) :: NewElement
   INTEGER, INTENT( IN  ) :: iElement         ! Current element number
   INTEGER, INTENT( IN  ) :: M( * ), maxM     ! number of modes, max number allowed
@@ -276,7 +273,7 @@ SUBROUTINE OUT( iElement, NewElement, Outside, ROut, xs, ys, tsx, tsy, MProp, M,
   INTEGER, INTENT( OUT ) :: MProp            ! number of propagating modes
   REAL,    INTENT( OUT ) :: ROut             ! range at which path exits
   COMPLEX, INTENT( OUT ) :: kOut( maxM ), PhiOut( * )   ! modes at exit point
-  INTEGER                :: ISide, node1, node2
+  INTEGER                :: iSide, node1, node2
   REAL                   :: ROutT, sOut, sT, x1S, y1S, Delta, Tx, Ty
   COMPLEX                :: k(    maxM, * )
 
@@ -293,13 +290,13 @@ SUBROUTINE OUT( iElement, NewElement, Outside, ROut, xs, ys, tsx, tsy, MProp, M,
 
   sOut = HUGE( sOut )
 
-  Side: DO ISide = 1, 3 
+  Side: DO iSide = 1, 3 
 
      ! Don't try an outside the same as the inside             
-     IF ( AdjacentElement( ISide, NewElement ) /= iElement ) THEN 
+     IF ( AdjacentElement( iSide, NewElement ) /= iElement ) THEN 
 
-        node1 = node( iCorner( ISide, 1 ), NewElement ) 
-        node2 = node( iCorner( ISide, 2 ), NewElement ) 
+        node1 = node( iCorner( iSide, 1 ), NewElement ) 
+        node2 = node( iCorner( iSide, 2 ), NewElement ) 
 
         x1S = x( node1 ) - xs
         y1S = y( node1 ) - ys                                               
@@ -318,7 +315,7 @@ SUBROUTINE OUT( iElement, NewElement, Outside, ROut, xs, ys, tsx, tsy, MProp, M,
         ENDIF
         ! If intercept is in segment, store the side number       
         IF ( ABS( sT - 0.5 ) < ABS( sOut - 0.5) ) THEN 
-           Outside = ISide 
+           Outside = iSide 
            sOut    = sT 
            ROut    = ROutT
            ! write( *, * ) 'nodes', ModeFileName( Node1 ), ModeFileName( Node2 )
@@ -334,14 +331,12 @@ END SUBROUTINE OUT
 
 !**********************************************************************!
 
-SUBROUTINE InterpolateModes( iElement, ISide, s, MProp, M, maxM, k, PhiR, kInt, PhiInt )          
+SUBROUTINE InterpolateModes( iElement, iSide, s, MProp, M, maxM, k, PhiR, kInt, PhiInt )          
 
   ! Given an element, a side, and a proportional distance along the side                                       
   ! Returns interpolated modal values
 
-  USE ElementMod
-  IMPLICIT NONE
-  INTEGER, INTENT( IN  ) :: iElement, ISide  ! index of the element and side
+  INTEGER, INTENT( IN  ) :: iElement, iSide  ! index of the element and side
   INTEGER, INTENT( IN  ) :: M( * ), maxM     ! number of modes, max number allowed
   REAL,    INTENT( IN  ) :: s                ! proportional distance along the side
   COMPLEX, INTENT( IN  ) :: PhiR( maxM, * )  ! mode shapes at each node
@@ -349,20 +344,22 @@ SUBROUTINE InterpolateModes( iElement, ISide, s, MProp, M, maxM, k, PhiR, kInt, 
   INTEGER, INTENT( OUT ) :: MProp            ! number of propagating modes
   COMPLEX, INTENT( OUT ) :: PhiInt( * )      ! interpolated mode shapes
   COMPLEX, INTENT( OUT ) :: kInt( maxM )     ! interpolated wavenumbers
-  INTEGER                :: Iset1, Iset2, I, node1, node2 
+  INTEGER                :: iSet1, iSet2, I, node1, node2 
   REAL                   :: st
 
-  node1 = node( iCorner( ISide, 1 ), iElement )
-  node2 = node( iCorner( ISide, 2 ), iElement )                                         
-  Iset1 = Iset( node1 )
-  Iset2 = Iset( node2 ) 
-  MProp = MIN( MProp, M( Iset1 ), M( Iset2 ) ) 
+  node1 = node( iCorner( iSide, 1 ), iElement )
+  node2 = node( iCorner( iSide, 2 ), iElement )
+
+  iSet1 = iSet( node1 )
+  iSet2 = iSet( node2 ) 
+
+  MProp = MIN( MProp, M( iSet1 ), M( iSet2 ) ) 
 
   st = MIN( MAX( s, 0.0 ), 1.0 ) ! Extrapolation blocked by making sure s in [0, 1]
 
   Mode: DO I = 1, MProp 
-     kInt(   I ) =    k( I, Iset1 ) + st * (    k( I, Iset2 ) -    k( I, Iset1 ) )  
-     PhiInt( I ) = PhiR( I, Iset1 ) + st * ( PhiR( I, Iset2 ) - PhiR( I, Iset1 ) )  
+     kInt(   I ) =    k( I, iSet1 ) + st * (    k( I, iSet2 ) -    k( I, iSet1 ) )  
+     PhiInt( I ) = PhiR( I, iSet1 ) + st * ( PhiR( I, iSet2 ) - PhiR( I, iSet1 ) )  
   END DO Mode
 
 END SUBROUTINE InterpolateModes

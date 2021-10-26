@@ -1,5 +1,12 @@
 MODULE EvaluateCMMod
+
+  USE PekRoot
   IMPLICIT NONE
+
+  INTEGER, PARAMETER, PRIVATE :: ModeFile = 30, MaxM = 20000, MaxN = 100001, Maxmed = 501, MaxNfreq = 1000
+  INTEGER, PRIVATE            :: ir, iProf
+  REAL,    PARAMETER, PRIVATE :: pi = 3.1415926
+  COMPLEX, PARAMETER          :: i = ( 0.0, 1.0 )
 
 CONTAINS
   SUBROUTINE EvaluateCM( FileRoot, RProf, NProf, phiS, phi, rd, Nrd, R, Nr, k, M, Option, P )                                 
@@ -15,10 +22,8 @@ CONTAINS
     ! thereafter energy is allowed to couple into higher-order modes.
 
     USE ReadModes
-    IMPLICIT NONE
-    INTEGER, PARAMETER       :: MaxM = 20000, MaxNfreq = 1000
-    REAL,    PARAMETER       :: pi = 3.1415926
-    COMPLEX, PARAMETER       :: i = ( 0.0, 1.0 )
+
+    INTEGER, PARAMETER       :: MaxNfreq = 1000
     INTEGER, INTENT( IN    ) :: Nr, Nrd, NProf            ! number of receiver ranges, depths, number of profiles
     REAL,    INTENT( IN    ) :: rd( Nrd ), r( Nr )        ! receiver depths, ranges
     INTEGER, INTENT( INOUT ) :: M                         ! number of modes
@@ -27,11 +32,12 @@ CONTAINS
     REAL,    INTENT( INOUT ) :: rProf( NProf + 1 )        ! ranges of profiles
     COMPLEX, INTENT( OUT   ) :: P( Nrd, Nr )              ! pressure field
     CHARACTER (LEN=50), INTENT( IN ) :: Option            ! Cartesian or cylindrical coordinates
-    INTEGER            :: ir, ird, iProf, ifreq = 1, Nfreq, M1
-    REAL  (KIND=8)     :: freqVec( MaxNfreq )             ! frequency for which modes were calculated
-    COMPLEX            :: SUM, A( MaxM ), k( MaxM )
-    CHARACTER (LEN=80) :: Title, FileRoot
-    LOGICAL, SAVE      :: first = .TRUE.                  ! flag for first call (for initialization)
+    CHARACTER (LEN=80), INTENT( IN ) :: FileRoot
+    INTEGER                  :: ird, ifreq = 1, Nfreq, M1
+    REAL  (KIND=8)           :: freqVec( MaxNfreq )       ! frequency for which modes were calculated
+    COMPLEX                  :: SUM, A( MaxM ), k( MaxM )
+    CHARACTER (LEN=80)       :: Title
+    LOGICAL, SAVE            :: first = .TRUE.            ! flag for first call (for initialization)
 
     ! Compute ranges (in meters) where new profiles are used    
     IF ( first ) THEN  
@@ -72,7 +78,7 @@ CONTAINS
 
           ! Here's where we cross over
           IF ( iProf  <= NProf ) THEN 
-             CALL NewProfile( FileRoot, iProf, ifreq, k, phi, M, rd, Nrd, A )
+             CALL NewProfile( FileRoot, ifreq, k, phi, M, rd, Nrd, A )
              WRITE( *, * ) 'New profile read at range', r(ir ) / 1000.0, iProf, ' #modes = ', M
           END IF
 
@@ -81,7 +87,7 @@ CONTAINS
              iProf      = iProf + 1
              A( 1 : M ) = A( 1 : M ) * EXP( -i * k( 1 : M ) * ( RProf( iProf ) - RProf( iProf - 1 ) ) )
 
-             IF ( iProf <= NProf ) CALL NewProfile( FileRoot, iProf, ifreq, k, phi, M, rd, Nrd, A )
+             IF ( iProf <= NProf ) CALL NewProfile( FileRoot, ifreq, k, phi, M, rd, Nrd, A )
           END DO
 
           ! Advance the remaining distance past the last interface
@@ -110,33 +116,33 @@ CONTAINS
 
   !**********************************************************************
 
-  SUBROUTINE NewProfile( FileRoot, iProf, ifreq, k, phiR, MR, rd, Nrd, A ) 
+  SUBROUTINE NewProfile( FileRoot, ifreq, k, phiR, MR, rd, Nrd, A ) 
 
     ! For a given profil number:                                        
     !     read in modes for current segment                             
     !     project the pressure field onto the new modes
     !     extract values of the modes at rcvr depths
 
-    IMPLICIT NONE
-    INTEGER, PARAMETER       :: MaxM = 20000,  MaxN = 16001, ModeFile = 30
+    USE calculateweights
+
     INTEGER, INTENT( INOUT ) :: MR
-    INTEGER, INTENT( IN    ) :: iProf, ifreq, Nrd
+    INTEGER, INTENT( IN    ) :: ifreq, Nrd
     REAL,    INTENT( IN    ) :: rd( Nrd )      ! receiver depths
     COMPLEX, INTENT( INOUT ) :: k( MaxM )      ! wavenumbers
     CHARACTER (LEN=80), INTENT( IN ) :: FileRoot
     COMPLEX, INTENT( INOUT ) :: phiR( MaxM, * ), A( * )
-    INTEGER              :: Mode, Nr, NTot, ML, ir, iz, ird( Nrd )
-    INTEGER, SAVE        :: IRecProfile
-    REAL                 :: z(  MaxN ), W( Nrd ), depthTL, depthBL, depthTR, depthBR, rhoBR, rhoTR, zt
-    COMPLEX              :: P(  MaxN ), sum1
-    COMPLEX              :: gamTL( MaxM ), gamBL( MaxM ), phiTL( MaxM ), phiBL( MaxM )
-    COMPLEX              :: gamTR,         gamBR,         phiTR = 0,     phiBR = 0, KTop2R, KBot2R
-    COMPLEX, ALLOCATABLE :: phi( : ), phiTmp( : )
-    COMPLEX     (KIND=8) :: PekerisRoot, gamma2
-    CHARACTER   (LEN= 1) :: BCBotR, BCTopR
+    INTEGER                  :: Mode, Nr, NTot, ML, ir, iz, ird( Nrd )
+    INTEGER, SAVE            :: IRecProfile
+    REAL                     :: z(  MaxN ), W( Nrd ), depthTL, depthBL, depthTR, depthBR, rhoBR, rhoTR, zt
+    COMPLEX                  :: P(  MaxN ), sum1
+    COMPLEX                  :: gamTL( MaxM ), gamBL( MaxM ), phiTL( MaxM ), phiBL( MaxM )
+    COMPLEX                  :: gamTR,         gamBR,         phiTR = 0,     phiBR = 0, KTop2R, KBot2R
+    COMPLEX, ALLOCATABLE     :: phi( : ), phiTmp( : )
+    COMPLEX     (KIND=8)     :: gamma2
+    CHARACTER   (LEN= 1)     :: BCBotR, BCTopR
 
     ! Compute pressure along the left of the interface
-    CALL PLeft( FileRoot, iProf, ifreq, IRecProfile, A, k, z, MR, P, NR, NTot,                &
+    CALL PLeft( FileRoot, ifreq, IRecProfile, A, k, z, MR, P, NR, NTot,                &
          &   BCTopR, rhoTR, KTop2R, depthTR, BCBotR, rhoBR, KBot2R, depthBR, &
          &   gamTL, gamBL, depthTL, depthBL, phiTL, phiBL, ML )
 
@@ -175,7 +181,7 @@ CONTAINS
 
        ! Compute new amplitudes:
        !       A = Integral[ P( z ) * phi( z ) dz ]
-       !       (Repeat for each mode phi to produce excitation coef. A)
+       !       (Repeat for each mode phi to produce excitation coef., A)
        !       Integral is done using trapezoidal rule
 
        sum1 = SUM( P( 1 : NTot ) * phiTmp )
@@ -211,7 +217,7 @@ CONTAINS
 
   !**********************************************************************
 
-  SUBROUTINE PLeft( FileRoot, iProf, ifreq, IRecProfile, A, k, z, M, P, NR, NTot,           &
+  SUBROUTINE PLeft( FileRoot, ifreq, IRecProfile, A, k, z, M, P, NR, NTot,           &
        &   BCTop, rhoT, kTop2, depthT, &
        &   BCBot, rhoB, kBot2, depthB, &
        &   gamTL, gamBL, depthTL, depthBL, phiTL, phiBL, ML )
@@ -220,11 +226,9 @@ CONTAINS
     ! Also returns information needed for the tails in the halfspaces   
 
     USE ReadModes
-    IMPLICIT NONE
-    REAL,    PARAMETER       :: pi = 3.1415926
-    INTEGER, PARAMETER       :: Maxmed = 50, MaxM = 20000, MaxNfreq = 1000
+
     INTEGER, INTENT( INOUT ) :: M, NR
-    INTEGER, INTENT( IN    ) :: iProf, ifreq
+    INTEGER, INTENT( IN    ) :: ifreq
     REAL,    INTENT( OUT   ) :: depthT, depthB, depthTL, depthBL
     COMPLEX, INTENT( INOUT ) :: k( * ), A( * )
     REAL,    INTENT( INOUT ) :: z( * )
@@ -233,16 +237,16 @@ CONTAINS
     COMPLEX, INTENT( INOUT ) :: gamTL( * ), gamBL( * ), phiTL( * ), phiBL( * )
     CHARACTER   (LEN=80), INTENT( IN ) :: FileRoot
     CHARACTER   (LEN= 1), INTENT( OUT ) :: BCBot, BCTop
-    INTEGER              :: N( Maxmed ), NL, NMat, med, mode, NMedia, iz, izL, Nfreq, LRecl, MR
-    INTEGER, SAVE        :: IRecProfileR = 1
-    REAL                 :: zL( MaxN ), zt, rhoL( Maxmed ), rho( Maxmed ), depthL( Maxmed ), depth( Maxmed )
-    REAL                 :: DBelow, rhoT, rhoB, rhoMed, rhoBel, h
-    REAL        (KIND=8) :: freqVec( MaxNfreq )
-    COMPLEX, ALLOCATABLE :: phi( : ), PL( : )
-    COMPLEX              :: cPT, cPB, cSB, cST, kTop2, kBot2
-    COMPLEX     (KIND=8) :: PekerisRoot, gamma2
-    CHARACTER   (LEN=80) :: Title
-    CHARACTER   (LEN= 8) :: Material( Maxmed )
+    INTEGER                  :: N( Maxmed ), NL, NMat, med, mode, NMedia, iz, izL, Nfreq, LRecl, MR
+    INTEGER, SAVE            :: IRecProfileR = 1
+    REAL                     :: zL( MaxN ), zt, rhoL( Maxmed ), rho( Maxmed ), depthL( Maxmed ), depth( Maxmed )
+    REAL                     :: DBelow, rhoT, rhoB, rhoMed, rhoBel, h
+    REAL        (KIND=8)     :: freqVec( MaxNfreq )
+    COMPLEX, ALLOCATABLE     :: phi( : ), PL( : )
+    COMPLEX                  :: cPT, cPB, cSB, cST, kTop2, kBot2
+    COMPLEX     (KIND=8)     :: gamma2
+    CHARACTER   (LEN=80)     :: Title
+    CHARACTER   (LEN= 8)     :: Material( Maxmed )
 
     ! Read modal info at end of last segment
     IRecProfile = IRecProfileR
@@ -262,8 +266,8 @@ CONTAINS
     READ( ModeFile, REC = IRecProfile + 1 ) BCTop(1:1), cPT, cST, rhoT, DepthTL, BCBot(1:1), cPB, cSB, rhoB, DepthBL
 
     ! set kTop2, kBot2 based on the frequency
-    IF ( BCTop( 1 : 1 ) == 'A' ) kTop2 = ( 2.0 * pi * FreqVec( ifreq ) / cPT ) **2 
-    IF ( BCBot( 1 : 1 ) == 'A' ) kBot2 = ( 2.0 * pi * FreqVec( ifreq ) / cPB ) **2
+    IF ( BCTop( 1 : 1 ) == 'A' ) kTop2 = ( 2.0 * pi * freqVec( ifreq ) / cPT ) **2 
+    IF ( BCBot( 1 : 1 ) == 'A' ) kBot2 = ( 2.0 * pi * freqVec( ifreq ) / cPB ) **2
 
     ! do the mode sum to calculate the pressure on the left, PL
     DO mode = 1, MIN( ML, M )  ! There are only M mode coefficients we can use, if ML happens to be larger
@@ -295,8 +299,7 @@ CONTAINS
     ! Read modal data in new segment
     IRecProfile = IRecProfileR
 
-    CALL ReadModeHeader( FileRoot, IProf, IRecProfile, LRecl, Title, freqVec, Nfreq, &
-                         NMedia, NR, NMat, N, Material, Depth, rho, z )
+    CALL ReadModeHeader( FileRoot, IProf, IRecProfile, LRecl, Title, freqVec, Nfreq, NMedia, NR, NMat, N, Material, Depth, rho, z )
 
     ! Read in eigenvalues, k( I )
     CALL ReadWavenumbers( IRecProfile, ifreq, k, MR, MaxM, LRecL )
@@ -376,13 +379,13 @@ CONTAINS
              P( iz ) = SUM( phiTL( 1 : ML ) * EXP( -gamTL( 1 : ML ) * ( depthTL - zT ) ) )
           END IF
        ELSE 
-          P( iz ) = PL( izL ) +                                       &
+          P( iz ) = PL( izL ) +                                         &
                ( zT - zL( izL ) ) / ( zL( izL + 1 ) - zL( izL ) ) *     &
-               ( PL( izL + 1 ) - PL( izL ) )
+                                    ( PL( izL + 1 ) - PL( izL ) )
        END IF
 
        ! compute mesh width, h
-       IF ( iz == 1 ) THEN         ! first point
+       IF ( iz == 1 ) THEN         ! First point
           h = 0.5 * ( z(  2   ) - z(   1      ) ) / rhomed
        ELSE IF ( iz == NTot ) THEN ! Last point
           h = 0.5 * ( z( NTot ) - z( NTot - 1 ) ) / rhomed
@@ -405,7 +408,6 @@ CONTAINS
 
   FUNCTION CalculateTail( Depth, phiL, gamL, DepthL, ML, phiR, gamR, DepthR ) RESULT( tail )
 
-    IMPLICIT NONE
     INTEGER, INTENT(IN) :: ML
     REAL,    INTENT(IN) :: Depth, DepthL, DepthR
     COMPLEX, INTENT(IN) :: gamL( ML ), phiL( ML ), gamR, phiR
