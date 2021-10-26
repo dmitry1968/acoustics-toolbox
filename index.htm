@@ -6,7 +6,8 @@
       charset=windows-1252">
     <meta name="GENERATOR" content="Microsoft FrontPage 4.0">
     <meta name="ProgId" content="FrontPage.Editor.Document">
-    <title>New Page 1</title>
+    <title>Acoustics Toolbox</title>
+    <meta name="author" content="Michael B. Porter">
   </head>
   <body>
     <h1 style="text-align: center;">Acoustics Toolbox </h1>
@@ -41,6 +42,32 @@
 href="http://www.curtin.edu.au/curtin/centre/cmst/products/actoolbox/index.html">ACT</a>:
       Matlab front-end for the Acoustic Toolbox written by <a
         href="http://www.curtin.edu.au/curtin/centre/cmst/staff/duncan.html">Alec
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -87,20 +114,27 @@ href="http://www.curtin.edu.au/curtin/centre/cmst/products/actoolbox/index.html"
     <h1>Overview</h1>
     <p class="MsoNormal"><span style="font-family: &quot;Times New
         Roman&quot;;"><o:p></o:p></span>The Acoustic <span
-        class="SpellE">ToolBox</span> includes four acoustic models:</p>
-    <p style="margin-left: 40px;" class="MsoNormal">BELLHOP: A beam/ray
-      trace code</p>
+        class="SpellE">ToolBox</span> includes five acoustic models:</p>
+    <p style="margin-left: 40px;" class="MsoNormal">BELLHOP:&nbsp;&nbsp;&nbsp;&nbsp;
+
+      A beam/ray trace code</p>
+    <p style="margin-left: 40px;" class="MsoNormal">BELLHOP3D: A 3D
+      beam/ray trace code</p>
     <p style="margin-left: 40px;" class="MsoNormal">KRAKEN:<span
-        style="">&nbsp; </span>A normal mode code</p>
-    <p style="margin-left: 40px;" class="MsoNormal"><o:p></o:p>SCOOTER:
+        style="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>A normal
+      mode code</p>
+    <p style="margin-left: 40px;" class="MsoNormal"><o:p></o:p>SCOOTER:&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       A finite element FFP code</p>
     <p style="margin-left: 40px;" class="MsoNormal"><o:p></o:p>SPARC:<span
-        style="">&nbsp;&nbsp; </span>A time domain FFP code<br>
+        style="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+      </span>A time domain FFP code<br>
     </p>
     <p style="margin-left: 40px;" class="MsoNormal"><br>
     </p>
     <p class="MsoNormal"><o:p></o:p>In addition, AT contains BOUNCE,
-      which omputes the reflection coefficient for a layered medium and
+      which computes the reflection coefficient for a layered medium and
       may be used to provide input to BELLHOP. A common input structure
       has been used throughout so that only minor modifications are
       needed to switch from one program to another.</p>
@@ -121,9 +155,10 @@ href="http://www.curtin.edu.au/curtin/centre/cmst/products/actoolbox/index.html"
           your system to run the pre-compiled binaries.<br>
         </o:p></span></p>
     <p class="MsoNormal"><span style="font-family: &quot;Times New
-        Roman&quot;;"><o:p>The package adheres strictly to the Fortran
-          2003 standard. A few of the Fortran 2003 extensions from
-          Fortran 90 are used.<br>
+        Roman&quot;;"><o:p>The package adheres quite strictly to the
+          latest Fortran standard. If you use an older Fortran such as
+          Fortran 77 you will have problems. You will also likely
+          encounter a few issues if you go back to Fortran 90.<br>
         </o:p></span></p>
     <h2>Record length</h2>
     <p class="MsoNormal">Fortran compilers differ in whether record
@@ -141,33 +176,8 @@ href="http://www.curtin.edu.au/curtin/centre/cmst/products/actoolbox/index.html"
       know the correct record length, that first open may generate an
       error message and will have to be removed. The RECL <span
         class="SpellE">specifier</span> should then also be removed from
-      the second open.<br>
-      <o:p>&nbsp;</o:p></p>
-    <h2>Ice Scatter module</h2>
-    <p class="MsoNormal">The <span class="SpellE">Twersky</span>-scatter
-option
-
-
-
-
-
-
-
-
-
-
-      is problematic because it calls <span class="SpellE">mathieu.f</span>
-      and <span class="SpellE"><span class="GramE">slbessel.f</span></span><span
-        class="GramE"> which</span> don't adhere to a rigorous Fortran
-      standard. To avoid this problem, the current distribution has this
-      option disabled.</p>
-    <p class="MsoNormal">If you want to put it back in, you will need to
-      link to <span class="SpellE">twersk.f</span> instead of <span
-        class="SpellE">twerskfuse.f</span>. These routines call <span
-        class="SpellE"><span class="GramE">mathieu.f</span></span><span
-        class="GramE"> which</span> needs to be compiled with a switch
-      to initialize all variables to zero. Most compilers have some such
-      switch. </p>
+      the second open.<o:p><br>
+      </o:p></p>
     <h2>Plotting:</h2>
     <p class="MsoNormal">Plot packages come and go. However, the output
       formats of the various models are all fairly simple to work with.
@@ -207,6 +217,32 @@ option
     <p class="MsoNormal">If you’re having problems, verify your path
       includes these by typing “path” from a DOS window. Typically you
       run KRAKEN by typing something like “kraken <span class="SpellE">pekeris</span>”.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -401,27 +437,224 @@ option
       SimplePE was not updating the marching matrices in the case where
       there was a range-dependent SSP but a flat bottom. Fixed ...<br>
     </p>
-    <h1><br>
-    </h1>
-    <p class="MsoNormal"><br>
+    <p class="MsoNormal"><i>November 2018</i><br>
+      A Piecewise-Cubic Hermite Interpolating Polynomial (PCHIP) option
+      has been added for interpolating the SSP in the various models.
+      This is really motivated by BELLHOP. The beam tracing algorithm
+      can be sensitive to the profile interpolation. Ideally the
+      interpolation should produce a smooth profile and the c-linear and
+      n2-linear options are only piecewise linear so they have
+      discontinuities in their first derivatives. The spline option is
+      smooth (up to second derivatives) but in some cases produces
+      contorted interpolants to achieve that smoothness. The PCHIP
+      option sacrifices some smoothness for better behavior. This has
+      been implemented in all the Fortran codes. The Matlab versions are
+      not current. i.e. do not have this implemented; however, it is an
+      easy modification.<br>
+    </p>
+    <p class="MsoNormal">There are many varieties of PCHIP; the earlier
+      spline option is one of them. A popular PCHIP is based on work by
+      Fritsch and Carlson and produces a monotonic curve between data
+      points--- so does not introduce new extrema. The key in that
+      implementation is to replace nodal derivatives with zero if there
+      is a sign change in the derivative between adjacent segments.
+      There are also variations in how the endpoints are treated. The
+      monotonic pchip did not have the effect I wanted. I've gone with a
+      simpler piece-wise cubic that simply averages the derivatives
+      between adjacent segments. That average is not O(h^2) if the grid
+      is varying. However, there are physical arguments that motivate
+      the simpler average and I didn't see a benefit in spending more
+      time on that.<br>
+    </p>
+    <p class="MsoNormal"><i>January 2019</i><br>
+      For those of you working at a lower level with the software, note
+      that vectors that previous referred to source and receiver depths
+      now refer to a z coordinate, e.g. Pos.r.depth becomes Pos.r.z.
+      This change was motivated by BELLHOP3D, which uses x, y, and z
+      coordinates for sources and receivers--- it made the code
+      structure more consistent in the sense that (x,y,z) makes more
+      sense than (x,y,depth). This change is transparent to you unless
+      you're using some of the Matlab scripts to read the shade files
+      into your own Matlab code.<br>
+    </p>
+    <p class="MsoNormal">John Peterson worked further on the PCHIP
+      implementation and made an implementation faithful to the original
+      PCHIP and consistent with the Matlab version. He also implement
+      PCHIP in the Matlab versions of SCOOTER, SPARC, and BELLHOP.<br>
+    </p>
+    <p class="MsoNormal"><i>February 2019</i><br>
+      Volume attenuation in the ocean had been implemented using the
+      Thorp formulas. A new option has been added to use to more refined
+      formulas due to Francois and Garrison (1982). This has been
+      implemented in all the Fortran models (Kraken, Scooter, Sparc,
+      Bellhop, Bounce) as well as their Matlab equivalents. I have only
+      checked the Bellhop and Scooter implementations.<br>
+    </p>
+    <p class="MsoNormal"><i>May 2019</i><br>
+      The 'm' option for attenuation (in dB/m with a transition to a
+      power law at a transition frequency) was no longer working. I was
+      testing the AttenUnit (two-letters) option for equality to the
+      single letter 'm', so it was never being invoked. This error was
+      in ReadEnvironmentMod and obviously crept in after the original
+      implementation.<br>
+    </p>
+    <p class="MsoNormal">The Francois-Garrison volume attenuation had
+      been implemented in the Matlab codes using hard-wired values for
+      Temperature, Salinity, pH, and depth. The codes have been modified
+      to read those values from the envfil in a manner consistent with
+      the Fortran codes.<br>
+    </p>
+    <p class="MsoNormal">This should be transparent to the user, but a
+      common routine was written for the Fortran to read a vector
+      (ranges, bearings, ray angles, etc.). This routine echoes the data
+      to the print file, skipping intermediate points if there are many
+      elements. It also converts values for ranges in km to m since the
+      package uses meters for internal units. It allocates dynamic
+      variables and generates intermediate values by linear
+      interpolation if the user has used the '/' option where only the
+      first and last values of the vector are provided. That code had
+      been repeated in a lot of places so this simplified and unified
+      the code a great deal, but involved a lot of changes.<br>
+    </p>
+    <p class="MsoNormal">The matlab version of 'field' and the
+      associated 'evalri' that implemented the modal sum has been
+      cleaned up. It runs a lot faster now and allows multiple source
+      depths and broadband (multi-frequency) cases. Note that the
+      documentation pertains still to the Fortran version of field and
+      that not all of the capabilities are implemented in the Matlab
+      version.<br>
+    </p>
+    <p class="MsoNormal">A 'call flush' statement has been added to the
+      main codes so that print statements that show the progress of a
+      run are flushed to the print file. Without that, the output is
+      buffered and you can't monitor the progress.<br>
+    </p>
+    <p class="MsoNormal"><i>July 2019</i><br>
+      The shdfil created by the various models is a direct access file
+      and was being opened with STATUS='UNKNOWN'. As a result, if the
+      file already existed it was used without change. This meant it
+      kept its original size even if it no longer needed the same
+      storage space. This problem was fixed by opening the files with
+      STATUS='REPLACE'. A similar problem had happened previously with
+      the KRAKEN modefiles and had been fixed in KRAKENC, but not
+      KRAKEN. <br>
+    </p>
+    <p class="MsoNormal">This version has a significantly better version
+      of the PCHIP (Piece-wise Cubic Hermite Interpolating Polynomial)
+      for interpolating the SSP and related info. I had done a
+      preliminary implementation but it was not faithful to the true
+      PCHIP. Also the newer PCHIP is more sophisticated, producing a
+      blend of the cubic spline and the traditional PCHIP that seems to
+      offer the best of both. (Thanks to J. Peterson.) This change is
+      relevant to all the models, but particularly significant for
+      BELLHOP since ray-based models tend to be more sensitive to the
+      SSP interpolation.<br>
       <br>
+      <i> December 2019</i><br>
+      In preparing an update, I found an access in SPARC outside of the
+      declared length of the source-depth vector. This problem was due
+      to the fact that the time-domain&nbsp; code SPARC tried to treat
+      the times for snapshots as source depths. To be more consistent,
+      the entire package now treats frequency as a conjugate variable to
+      time, and range as a conjugate variable to the horizontal
+      wavenumber. This unifies the file formats for grnfil, shdfil
+      produced by SPARC, SCOOTER, KRAKEN, etc. Wherever frequency
+      occurs, SPARC uses that space for time; wherever range occurs,
+      SCOOTER and SPARC use that space for the horizontal
+      wavenumber.&nbsp; Routines such as fieldsco.m Fourier transform
+      those output fields to the conjugate variables, preserving the
+      basic file structure.<br>
+    </p>
+    <p class="MsoNormal">There had been some fussy code in broadband
+      runs where the first element of a frequency vector was used to
+      denote a carrier frequency. The broadband codes now use a separate
+      variable, freq0, for the carrier or nominal frequency to avoid
+      confusion. That scalar frequency is also now separately written to
+      the output shdfil or grrnfil.<br>
+    </p>
+    <p class="MsoNormal"><i>June 2020</i><br>
+      A user inadvertently selected a very large attenuation in a
+      sediment layer. That attenuation is combined with the real sound
+      speed to generate a complex sound speed, taking into account the
+      user units. If the resulting complex sound speed has an imaginary
+      part greater than the real part, then the squared sound speed is
+      in the negative halfplane. This is not physical and creates
+      errors. A trap has been added to detect and flag this sort of
+      error.<br>
     </p>
     <h1>Frequently Asked Questions</h1>
     <p class="MsoNormal"><i style="">Why do I get an end-of-file in
         reading the very last line of the <span class="SpellE">envfil</span>?<o:p></o:p></i></p>
     <p class="MsoNormal">You left off a carriage return/line feed after
       the last line, or other appropriate end-of-line marker for your
-      system.</p>
-    <p class="MsoNormal"><i style="">Why do I get a segmentation
-        violation<span class="SpellE"></span>?<o:p></o:p></i></p>
-    <p class="MsoNormal">You ran a case that required an outrageous
-      amount of storage. The code is supposed to catch all such cases by
-      detecting an error in the allocation of dynamic variables (or
-      limits for the few arrays with fixed dimensions). However, we see
-      cases where the compiler simply does not handle huge arrays
-      properly.<br>
+      system. There are other ways this could happen; check the print
+      file to see where you deviated from the expected format. The
+      models try to echo the input as soon as its read, so you can see
+      clearly where the error happened.<br>
     </p>
-    <p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+    <p class="MsoNormal"><i style=""><br>
+        Why do I get a segmentation violation<span class="SpellE"></span>?<o:p></o:p></i></p>
+    <p class="MsoNormal">Generally you should never see this. However,
+      if you ran a case that required an outrageous amount of storage
+      you might encounter a problem. The code is supposed to catch all
+      such cases by detecting an error in the allocation of dynamic
+      variables (or limits for the few arrays with fixed dimensions).
+      However, we see cases where the compiler simply does not handle
+      huge arrays properly.<br>
+    </p>
+    <p class="MsoNormal"><o:p><i><br>
+          Which sign convention is used for a continuous wave source?</i></o:p><br>
+      <o:p> </o:p></p>
+    <div class="" style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0);
+      font-family: Helvetica; font-size: 13px; font-style: normal;
+      font-variant-caps: normal; font-weight: normal; letter-spacing:
+      normal; orphans: auto; text-align: start; text-indent: 0px;
+      text-transform: none; white-space: normal; widows: auto;
+      word-spacing: 0px; -webkit-text-size-adjust: auto;
+      -webkit-text-stroke-width: 0px; text-decoration: none;">The source
+      is s( t ) = e(+i \omega t ) in the Acoustics Toolbox models. This
+      is the opposite convention of what we used in the book
+      Computational Ocean Acoustics. We had to standardize on one
+      convention and the models we used were inconsistent.<br>
+    </div>
+    <div class="" style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0);
+      font-family: Helvetica; font-size: 13px; font-style: normal;
+      font-variant-caps: normal; font-weight: normal; letter-spacing:
+      normal; orphans: auto; text-align: start; text-indent: 0px;
+      text-transform: none; white-space: normal; widows: auto;
+      word-spacing: 0px; -webkit-text-size-adjust: auto;
+      -webkit-text-stroke-width: 0px; text-decoration: none;"><br
+        class="">
+    </div>
+    <div class="" style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0);
+      font-family: Helvetica; font-size: 13px; font-style: normal;
+      font-variant-caps: normal; font-weight: normal; letter-spacing:
+      normal; orphans: auto; text-align: start; text-indent: 0px;
+      text-transform: none; white-space: normal; widows: auto;
+      word-spacing: 0px; -webkit-text-size-adjust: auto;
+      -webkit-text-stroke-width: 0px; text-decoration: none;">The KRAKEN
+      manual mimics the book in terms of the theoretical presentation—
+      the footnote on p. 6 of the manual is to warn the user that the
+      code has the opposite sign convention.</div>
+    <div class="" style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0);
+      font-family: Helvetica; font-size: 13px; font-style: normal;
+      font-variant-caps: normal; font-weight: normal; letter-spacing:
+      normal; orphans: auto; text-align: start; text-indent: 0px;
+      text-transform: none; white-space: normal; widows: auto;
+      word-spacing: 0px; -webkit-text-size-adjust: auto;
+      -webkit-text-stroke-width: 0px; text-decoration: none;"><br
+        class="">
+    </div>
+    <div class="" style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0);
+      font-family: Helvetica; font-size: 13px; font-style: normal;
+      font-variant-caps: normal; font-weight: normal; letter-spacing:
+      normal; orphans: auto; text-align: start; text-indent: 0px;
+      text-transform: none; white-space: normal; widows: auto;
+      word-spacing: 0px; -webkit-text-size-adjust: auto;
+      -webkit-text-stroke-width: 0px; text-decoration: none;"><br>
+    </div>
+    <br class="Apple-interchange-newline">
+    <p></p>
     <p>&nbsp;</p>
   </body>
 </html>
