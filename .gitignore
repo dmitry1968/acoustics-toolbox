@@ -35,10 +35,6 @@
 
 # Others
 .DS_Store
-doc/
-Matlab/
-*.pdf
-tests/
 bin/
 *.swp
 *.swo
