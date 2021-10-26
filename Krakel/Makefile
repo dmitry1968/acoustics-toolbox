@@ -23,10 +23,11 @@ clean:
 	-rm -f *.o *.exe
 
 # ****** krakel ******
-KRAKELOBJS= krakelmod.o krakel.o dgbdi.o dgbtrf.o dgbtrs.o ../Kraken/zsecantx.o ../misc/libmisc.a
-KRAKELOBJS= krakelmod.o krakel.o dgbdi.o                   ../Kraken/RootFinderSecantMod.o ../misc/libmisc.a
+KRAKELOBJS= krakelmod.o krakel.o dgbdi.o dgbtrf.o dgbtrs.o ../misc/libmisc.a
+KRAKELOBJS= krakelmod.o krakel.o dgbdi.o                   ../misc/libmisc.a
+
+krakel.o:  krakelmod.mod krakel.f90
 
 krakel.exe:	$(KRAKELOBJS)
 #	$(FC) $(FFLAGS) -o krakel.exe $(KRAKELOBJS) $(LIBSMODS) -L$(MKLPATH) -lmkl_lapack -lmkl -lguide -lpthread
 	$(FC) $(FFLAGS) -o krakel.exe $(KRAKELOBJS) $(LIBSMODS) -llapack
-
