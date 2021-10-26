@@ -32,10 +32,10 @@ clean:
 	$(FC) -c $(FFLAGS) $< 
 
 .f90.o:
-	$(FC) -c $(FFLAGS) $< 
+	$(FC) -c $(FFLAGS) -I../tslib $<
 
 .f90.mod:
-	$(FC) -c $(FFLAGS) $< 
+	$(FC) -c $(FFLAGS) -I../tslib $<
 
 # Declare explicit dependencies (and explicit build rules as needed)
 
