@@ -54,7 +54,7 @@ SourceReceiverPositions.o sourcereceiverpositions.mod: SourceReceiverPositions.f
 PolyMod.o polymod.mod: PolyMod.f90
 	$(FC) -c $(FFLAGS) $< 
 
-AttenMod.o: AttenMod.f90 MathConstants.mod
+AttenMod.o: AttenMod.f90 mathconstants.mod
 	$(FC) -c $(FFLAGS) $<
 
 beampattern.o beampattern.mod: beampattern.f90 fatalerror.mod

@@ -52,9 +52,9 @@ ElementMod.o elementmod.mod: ElementMod.f90
 ReadModes.o readmodes.mod: ReadModes.f90
 	$(FC) -c $(FFLAGS) $<    # this rule is necessary, otherwise the make utility thinks *.mod is a modula file and uses m2c
 
-field.o:   ReadModes.mod evaluatemod.mod evaluateadmod.mod evaluatecmmod.mod field.f90
+field.o:   readmodes.mod evaluatemod.mod evaluateadmod.mod evaluatecmmod.mod field.f90
 
-field3d.o: ReadModes.mod elementmod.mod evaluate3dmod.mod evaluatepdqmod.mod evaluategbmod.mod field3d.f90
+field3d.o: readmodes.mod elementmod.mod evaluate3dmod.mod evaluatepdqmod.mod evaluategbmod.mod field3d.f90
 
 field.exe: $(FIELD_OBJECTS)
 	$(FC) -o $@ $(FFLAGS) $(FIELD_OBJECTS) $(FIELD_LIBS)
