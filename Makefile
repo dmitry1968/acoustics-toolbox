@@ -33,12 +33,24 @@
 # However, crt0.o comes up as misssing
 # -Bstatic worked
 
+# The make utility tends to get confused with modules because it does not necessarily update the *.mod file
+# when it compiles the *.f90 file. (The *.mod file contains interface information that doesn't necessarily change
+# even then the *.f90 file has changed.)
+# As a result, you may find that make keeps compiling a module, that was already compiled.
+# A 'make clean' will fix that
 # ______________________________________________________________________________
 
 # *** ifort
 # These lines are used under Mac OSX; the syntax is different under Windows
 # You also need to use xiar instead of ar
-# choose the best architecture (target machine) using the -x switch
+# That change needs to be made in at/misc/Makefile and at/tslib/Makefile
+# Note that the -assume byterecl is important, otherwise the output files have the wrong format
+
+# If you use the -parallel option, the compiler links into a dynamic library for OpenMP
+# Then you need to make sure that dylib is in the path
+
+# Choose the best architecture (target machine) using the -x switch
+# According to the latest benchmarks on polyhedron, it looks like -parallel is very helpful
 
 # need -heap-arrays to avoid stack overflows for big runs ...
 export FC?=ifort
@@ -58,7 +70,7 @@ export FFLAGS= -O3 -xHost -funroll-loops -no-prec-div -nologo -inline-level=2 -a
 # compilation diagnostics on:
 export FFLAGS= -O2 -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc -check -traceback
 
-# runtime diagnostic on as well:
+# runtime diagnostics on as well:
 export FFLAGS= -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc -check all -ftrapuv -fpe0 -gen-interfaces -traceback
 #export FFLAGS= -nologo -O0 -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc -check all -ftrapuv -gen-interfaces -traceback
 #export FFLAGS= -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I../misc -check all -ftrapuv -traceback
@@ -74,9 +86,10 @@ export FFLAGS= -nologo -inline-level=2 -assume byterecl -threads -heap-arrays -I
 # -march=generic assumes an old Intel architecture that the newer versions can all execute (slowly)
 # -march=native should normally be the best; however, it produced AVX instructions on the Mac that the default assembler could not process
 # -O2 was the highest level of optimization that worked under Windows
-#
+
 # -static can be used to tell gfortran not to rely on a dynamic link library (the compiler may or may not support)
 # -static does not seem to work on Macs though, and produces larger executables
+
 # Have had various problems where some installed dynamic link library is incompatible with the one the compiler used and expects at run time
 # For instance, Matlab changes paths and may point to an incompatible library.
 # One user found that it was necessary to delete /usr/local/gfortran/lib/libquadmath.dylib to force a static link. See:
@@ -93,32 +106,29 @@ export FC?=gfortran
 # export FFLAGS= -march=native -Wall -std=gnu -O3 -I../misc -ffast-math -funroll-all-loops -msse3 -fomit-frame-pointer -mtune=native -Q
 # export FFLAGS= -march=corei7 -Bstatic -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -std=f2008 -O3 -ffast-math -funroll-all-loops -fomit-frame-pointer -mtune=native -I../misc
 # -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/usr/lib
-
-#export FFLAGS= -march=corei7 -Bstatic -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -std=f2008 -O3 -ffast-math -funroll-all-loops -fomit-frame-pointer -I../misc
-
+# export FFLAGS= -march=corei7 -Bstatic -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -std=f2008 -O3 -ffast-math -funroll-all-loops -fomit-frame-pointer -I../misc
 # export FFLAGS= -march=native -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -Wa,-q -std=f2008 -O3 -ffast-math -funroll-all-loops -fomit-frame-pointer -mtune=native -I../misc
-
 export FFLAGS= -march=native -Bstatic -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -std=gnu -O3 -ffast-math -funroll-all-loops -fomit-frame-pointer -mtune=native -I../misc
 
-#compilation and run-time diagnostics on:
-#export FFLAGS= -march=corei7 -ffpe-trap=invalid,zero,overflow -Wall -std=gnu -O1 -fcheck=all -fbacktrace -I../misc
-#export FFLAGS= -march=native -ffpe-trap=zero,overflow -Wall -std=gnu -O1 -fcheck=all -I../misc
+# Compilation and run-time diagnostics on:
+# export FFLAGS= -march=corei7 -ffpe-trap=invalid,zero,overflow -Wall -std=gnu -O1 -fcheck=all -fbacktrace -I../misc
+# export FFLAGS= -march=native -ffpe-trap=zero,overflow -Wall -std=gnu -O1 -fcheck=all -I../misc
 
-# profiling:
+# Profiling:
 # I read that the -pg flag is needed for profiling, but there's some problem with the library and it doesn't compile
 # It does compile with just the -p and -g flags but does not appear to have enough info for the xcode instruments
-#export FFLAGS= -p -g -pg -march=native -Wall -std=f2008 -I../misc
-#export FFLAGS= -p -g -march=native -Bstatic -Wa,-q -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -std=f2008 -O3 -ffast-math -funroll-all-loops -fcheck=all -I../misc
+# export FFLAGS= -p -g -pg -march=native -Wall -std=f2008 -I../misc
+# export FFLAGS= -p -g -march=native -Bstatic -Wa,-q -Waliasing -Wampersand -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -std=f2008 -O3 -ffast-math -funroll-all-loops -fcheck=all -I../misc
 
 # ______________________________________________________________________________
 
 # *** g95
-# this is no longer working with the Acoustics Toolbox
+# This is no longer working with the Acoustics Toolbox because it uses Fortran features that the g95 compiler has not implemented
 # export FC=g95
-# export FFLAGS= -Wall -std=f2003 -O3 -I../misc
+# export FFLAGS = -Wall -std=f2003 -O3 -I../misc
 
 # compilation diagnostics on:
-# export FFLAGS= -Wall -std=f2003 -ftrace=full -fbounds-check -I../misc
+# export FFLAGS = -Wall -std=f2003 -ftrace=full -fbounds-check -I../misc
 # export FFLAGS = -pg -std=f2003 -I../misc
 
 # ______________________________________________________________________________
@@ -126,7 +136,7 @@ export FFLAGS= -march=native -Bstatic -Waliasing -Wampersand -Wsurprising -Wintr
 # *** Portland Group FORTRAN
 # -Mnoframe caused erroneous results
 # -Munroll  caused erroneous results
-# these are defaults under -fast, so can't use -fast either
+# These are defaults under -fast, so can't use -fast either
 # export FC=pgfortran
 # export FFLAGS= -Mconcur -I../misc
 # export FFLAGS= -fast -I../misc
@@ -156,7 +166,7 @@ all:
 	(cd Bellhop;	make -k all)
 	(cd Kraken;	make -k all)
 	(cd KrakenField;	make -k all)
-	#(cd Krakel;	make -k all)
+	# (cd Krakel;	make -k all)
 	(cd Scooter;	make -k all)
 	@echo " "
 	@echo "***********************************"
@@ -165,10 +175,12 @@ all:
 
 install:
 	-mkdir -p bin
+	(cd misc;	make -k all)
+	(cd tslib;	make -k all)
 	(cd Bellhop;	make -k install)
 	(cd Kraken;	make -k install)
 	(cd KrakenField;        make -k install)
-#(cd Krakel;	make -k install)
+	# (cd Krakel;	make -k install)
 	(cd Scooter;	make -k install)
 	@echo " "
 	@echo "***************************************"
@@ -177,6 +189,14 @@ install:
 
 clean:
 	-rm -f bin/*.exe
+	find . -name '*.dSYM' -exec rm -r {} +
+	find . -name '*.png'  -exec rm -r {} +
+	find . -name '*.eps'  -exec rm -r {} +
+	find . -name '*.mod'  -exec rm -r {} +
+	find . -name '*.grn'  -exec rm -r {} +
+	find . -name '*.shd'  -exec rm -r {} +
+	find . -name '*.shd.mat'  -exec rm -r {} +
+	find . -name '*.prt'  -exec rm -r {} +
 	(cd misc;	make -k -i clean)
 	(cd tslib;	make -k -i clean)
 	(cd Bellhop;	make -k -i clean)
