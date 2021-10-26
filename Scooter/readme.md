@@ -1,4 +1,4 @@
-SCOOTER and SPARC wavenumber integration models for tonal and broadband sources in ocean acoustic waveguides.
+#SCOOTER and SPARC wavenumber integration models for tonal and broadband sources in ocean acoustic waveguides.
 
    Copyright (C) 2009 Michael B. Porter
 
@@ -18,7 +18,7 @@ SCOOTER and SPARC wavenumber integration models for tonal and broadband sources 
 
 UPDATES:
 
- 4/92  The linear system solver (FACTOR/BACSUB) used by  SCOOTER was not initializing one of the variables to 0.  Causing sporadic NaN/Infinity problems when using IEEE arithmetic.  A similar problem occured  with the axis length specification for plots in FIELDS.
+ 4/92  The linear system solver (FACTOR/BACSUB) used by  SCOOTER was not initializing one of the variables to 0.  This caused sporadic NaN/Infinity problems when using IEEE arithmetic.  A similar problem occured  with the axis length specification for plots in FIELDS.
 
  9/92  The option of putting an acousto-elastic halfspace on the top was not working properly. (It took the density from the lower halfspace.)
 
@@ -100,3 +100,33 @@ An option 'H' has also been added to use the exact Bessel transform, which is im
 
 January 2018
 The broadband implementation in SCOOTER had not been completed. Many changes were made to make that operational.
+
+December 2018
+A user had a problem running fields.f90 with a broadband SCOOTER run. In fact, fields.f90 had not been modified to handle that. Code was added to have fields.f90 terminate with an error when this is attempted.
+
+A bug was found in this latest version of fields.f90 in that it was not allocating storage for the source x and y coordinates. Scooter doesn't use those variables except to write them to the output file to have a consistent format with the 3D models that do use that information. This had no real impact; however, the Intel Fortran compiler detected it when all the debug checks were enabled.
+
+February 2018
+In converting the codes to broadband, I introduced a bug in fields.f90 where the frequency variable, Freq, was not initialized. This broke the option for applying a source beam pattern. Note that fields.f90 is not really supported. fieldsco.m (the Matlab equivalent) is the one that normally should be used.
+
+May 2019
+The routine sourceMod.f90 is used by sparc.f90 to read a source timeseries file. A line copied a matrix of these timeseries into a single vector for subsequent filtering. The vector was longer than the corresponding entry in the matrix. With runtime diagnostics turned on in the Intel compiler this triggered an error about accessing data outside the array bounds. Those values beyond the array bound were never used. However, this was fixed.
+
+The Matlab routine fieldsco.m has been modified to allow negative values in the range vector. This doesn't generally make physical sense, but there are occasions where we like to show such symmetric plots.
+
+June 2019
+For a broadband run, SCOOTER does automatic scaling of the finite-element grid based on the frequency. An error was fixed where the scaling was done using the lowest frequency as the reference, even though the original grid was set up at the central frequency given in the second line of the env file.
+
+May 2020
+A user specified that there was one receiver depth, but then provided two values in the following line. This caused confusion in the Matlab version of Scooter in terms of the vector allocated for the receiver depths. The routine readvector.m was modified to ignore extraneous extra depths.
+
+July 2020
+The fieldsco.m routine is the Matlab routine usually used to transform the scooter Green's function to the pressure field. Normally the far-field approximation to the Hankel function was used. In that case, there is a singularity at the origin. If the user selected a zero (or small) range it was shifted to avoid that singularity. However, that shift was also being applied when a user selected the exact Hankel function. So for near-field problems, with that option, an error was introduced. Fixed ....
+
+August 2020
+(See also March 2017.) A quick fix had been done in March 2017 to allow a source in the atmosphere over the ocean. The issue here was to correct for the density the source. The fix did not allow the possibility of sources below the first medium, if it had a different density. This caused errors in a particular test case. Code has been added to more carefully identify the density at the source depth. However, we note that there is an ambiguity about which density to use if sources are placed on interfaces between media with different densities.
+
+October 2020
+Originally the Acoustics Toolbox considered fields that depended on source depth (Sz), receiver depth (Rz), and receiver range (Rr), i.e. a 3D array. Changes were required for BELLHOP3D which allows a ( Sx, Sy, Sz ). Also a broadband option was added bringing in a timestep. This has all been unified in the Fortran codes.
+
+The Matlab codes have not been kept current with all those capabilities and sparcM was not in synch with the scooterM format. sparcM has been updated and is now consistent with scooterM. However, further work will be needed for broadband scooterM runs.

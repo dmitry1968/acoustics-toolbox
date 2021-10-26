@@ -2,7 +2,7 @@ PROGRAM FIELDS
 
   ! Note: The Matlab version of this (fieldsco.m) is preferred unless memory efficiency is a problem
   ! Also, this has not been updated to process multiple frequencies
-  
+
   ! Compute pressure from Green's function.
 
   ! The transform parameters are chosen to satisfy certain sampling requirements.
@@ -16,18 +16,18 @@ PROGRAM FIELDS
   ! Delta_r implies kmax. kmax is the upper limit of integration and beyond the last point computed.
   ! This assumes the user had chosen kmax as small as possible while still covering the support of G(k).
 
-  USE beampatternMod
-  USE SdRdRMod
+  USE BeamPattern
+  USE SourceReceiverPositions
   IMPLICIT NONE
 
   SAVE
-  INTEGER, PARAMETER   :: FLPFile = 10, PRTFile = 6, GRNFile = 20, SHDFile = 25
+  INTEGER, PARAMETER   :: FLPFile = 5, PRTFile = 6, GRNFile = 20, SHDFile = 25
   REAL,    PARAMETER   :: pi = 3.14159265, RadDeg = 180.0 / pi
   COMPLEX (KIND=8), PARAMETER :: i  = ( 0.0, 1.0 )
   INTEGER              :: Nrr
   INTEGER              :: IAllocStat, Nk, NrrLast, Nt, Nt2
   REAL                 :: Atten, AttInt, Freq, kmax, Delta_k, Delta_kInterp, &
-                          Rmin, Rmax, RMinKM, RMaxKM, Delta_r
+                          Rmin, Rmax, Delta_r
   CHARACTER   (LEN=80) :: PlotTitle, FileRoot
   CHARACTER   (LEN= 4) :: Option
   REAL,    ALLOCATABLE :: k( : ), kInterp( : ), cVec( : )
@@ -51,7 +51,11 @@ PROGRAM FIELDS
 
   ! open the field paramaters file (FLPFile)
   OPEN( FILE = TRIM( FileRoot ) // '.flp', UNIT = FLPFile, STATUS = 'OLD', FORM = 'FORMATTED', IOSTAT = IOStat, ACTION = 'READ' )
-  IF ( IOStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'FIELDS', 'Unable to open FLPFile' )
+
+  IF ( IOStat /= 0 ) THEN
+     WRITE( PRTFile, * ) 'FLPFile = ', TRIM( FileRoot ) // '.flp'
+     CALL ERROUT( PRTFile, 'F', 'FIELDS', 'Unable to open FLPFile' )
+  END IF
 
   ! Begin by reading in the data
   READ( FLPFile, * ) Option
@@ -89,17 +93,17 @@ PROGRAM FIELDS
   SBPFlag = Option( 4 : 4 )
   CALL ReadPAT( FileRoot, PRTFile )  ! Source Beam Pattern
 
-  CALL ReadRcvrRanges( FLPFile, PRTFile )         ! Read receiver ranges
-  Nrr = Pos%Nr
-  Rmin = Pos%r( 1   )
-  Rmax = Pos%r( Nrr )
-  
-  !READ( FLPFile, * ) RminKM, RmaxKM, Nrr
-  !Rmin    = 1000.0 * RminKM   ! convert km to m
-  !Rmax    = 1000.0 * RmaxKM
-  Delta_r = ( Rmax - Rmin ) / ( Nrr - 1 )
+  CALL ReadRcvrRanges   ! Read receiver ranges, Rr
+  Nrr     = Pos%NRr
+  Rmin    = Pos%Rr( 1   )
+  Rmax    = Pos%Rr( Nrr )
+  Delta_r = ( Rmax - Rmin ) / ( NRr - 1 )
 
   CALL ReadHeader   ! Read the header records from GRNFile
+
+  IF ( Nfreq > 1 ) THEN
+     CALL ERROUT( PRTFile, 'F', 'FIELDS', 'cannot handle broadband runs; use the Matlab version FIELDSCO.m' )
+  END IF
 
   ! Set up for transform: need Delta_k, NT
   ! Delta_k is what scooter used; Delta_kInterp is for interpolation
@@ -110,7 +114,7 @@ PROGRAM FIELDS
   IF ( kmax < k( Nk ) ) THEN
      IRatioDelta_r = INT( ( k( Nk ) - k( 1 ) ) / ( kmax - k( 1 ) ) ) + 1
      Delta_r       = Delta_r / IRatioDelta_r
-     Nrr           = IRatioDelta_r * ( Nrr - 1 ) + Nrr
+     Nrr           = IRatioDelta_r * ( NRr - 1 ) + NRr
      kmax          = k( 1 ) + 2 * pi / Delta_r
      WRITE( PRTFile, * ) 'Number or ranges, Nrr, increased so that wavenumber limit exceeds kmax used by SCOOTER', Nrr
   END IF
@@ -162,15 +166,15 @@ PROGRAM FIELDS
   kInterp = k( 1 ) + [ ( J, J = 0, Nt - 1 ) ] * Delta_kInterp   ! Set up vector of kInterp points
   kmax    = kInterp( Nt ) + Delta_kInterp   ! because the fft goes from 0 to kmax but G(kmax) is not computed
   Delta_r = 2 * pi / ( kmax - kInterp( 1 ) )
-  Nrr     = Nt
-  NrrLast = min( NINT( ( Rmax - Rmin ) / Delta_r ) + 1, Nt )
+  NRr     = Nt
+  NRrLast = min( NINT( ( Rmax - Rmin ) / Delta_r ) + 1, Nt )
 
   ! set up vector of range points (subsampled to satisfy user request)
-  Pos%Nr = ( NrrLast - 1 ) / IratioDelta_r + 1
-  DEALLOCATE( Pos%r )
-  ALLOCATE( Pos%r( Pos%Nr ) )
-  Pos%r = Rmin + [ ( J, J=0, Pos%Nr - 1 ) ] * IratioDelta_r * Delta_r
-  
+  Pos%Nrr = ( NrrLast - 1 ) / IratioDelta_r + 1
+  DEALLOCATE( Pos%Rr )
+  ALLOCATE( Pos%Rr( Pos%Nrr ) )
+  Pos%Rr = Rmin + [ ( J, J = 0, Pos%NRr - 1 ) ] * IratioDelta_r * Delta_r
+
   ! Construct shade file
   CALL SHADE( IratioDelta_r )
 
@@ -178,165 +182,168 @@ PROGRAM FIELDS
 
 CONTAINS
 
-!**********************************************************************C
+  !**********************************************************************!
 
-SUBROUTINE ReadHeader
+  SUBROUTINE ReadHeader
 
-  ! Routine to read header from disk file
-  ! This routine is essentially the same as at/misc/ReadHeader except that the range vector is replaced
-  ! by a wavenumber vector.
+    ! Routine to read header from disk file
+    ! This routine is essentially the same as at/misc/ReadHeader except that the range vector is replaced
+    ! by a wavenumber vector.
 
-  USE SdRdRMod
+    USE SourceReceiverPositions
 
-  IMPLICIT NONE
-  INTEGER :: IOStat, LRecL
+    IMPLICIT NONE
+    INTEGER :: IOStat, LRecL
 
-  OPEN( FILE = TRIM( FileRoot ) // '.grn', UNIT = GRNFile, STATUS = 'OLD', ACCESS = 'DIRECT', &
-       FORM = 'UNFORMATTED', RECL = 10, IOSTAT = IOStat, ACTION = 'READ' )
-  IF ( IOStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'FIELDS:RDHead', 'Unable to open GRNFile' )
+    OPEN( FILE = TRIM( FileRoot ) // '.grn', UNIT = GRNFile, STATUS = 'OLD', ACCESS = 'DIRECT', &
+         FORM = 'UNFORMATTED', RECL = 10, IOSTAT = IOStat, ACTION = 'READ' )
+    IF ( IOStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'FIELDS:RDHead', 'Unable to open GRNFile' )
 
-  READ( GRNFile, REC = 1 ) LRECL
-  CLOSE( GRNFile )
-  OPEN( FILE = TRIM( FileRoot ) // '.grn', UNIT = GRNFile, STATUS = 'OLD', ACCESS = 'DIRECT', &
-       FORM = 'UNFORMATTED', RECL = 4 * LRECL, ACTION = 'READ' )
+    READ( GRNFile, REC = 1 ) LRECL
+    CLOSE( GRNFile )
+    OPEN( FILE = TRIM( FileRoot ) // '.grn', UNIT = GRNFile, STATUS = 'OLD', ACCESS = 'DIRECT', &
+         FORM = 'UNFORMATTED', RECL = 4 * LRECL, ACTION = 'READ' )
 
-  ! Read data
-  READ( GRNFile, REC = 1 ) LRECL, PlotTitle
-  !READ( GRNFile, REC = 2 ) PlotType, XS, YS
-  READ( GRNFile, REC = 3 ) Nfreq, Pos%Ntheta, Pos%Nsx, Pos%Nsy, Pos%Nsd, Pos%Nrd, Pos%Nr, atten
-  Nk = Pos%Nr
+    ! Read data
+    READ( GRNFile, REC = 1  ) LRECL, PlotTitle
+    !READ( GRNFile, REC = 2 ) PlotType, XS, YS
+    READ( GRNFile, REC = 3  ) Nfreq, Pos%Ntheta, Pos%NSx, Pos%NSy, Pos%NSz, Pos%NRz, Pos%Nrr, atten
+    Nk = Pos%Nrr
 
-  ALLOCATE( k( Nk ), G( Nk ), cVec( Nk ), Stat = IAllocStat )
-  ALLOCATE( FreqVec( Nfreq ), Pos%sd( Pos%Nsd ), Pos%rd( Pos%Nrd ), Pos%theta( Pos%Ntheta ), Stat = IAllocStat )
-  IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'ReadHeader', 'Too many source/receiver combinations' )
+    ALLOCATE( k( Nk ), G( Nk ), cVec( Nk ), Stat = IAllocStat )
+    ALLOCATE( FreqVec( Nfreq ), Pos%sx( Pos%NSx ), Pos%sy( Pos%NSy ), Pos%sz( Pos%NSz ), &
+         Pos%rz( Pos%NRz ), Pos%theta( Pos%Ntheta ), Stat = IAllocStat )
+    IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'ReadHeader', 'Too many source/receiver combinations' )
 
-  READ( GRNFile, REC = 4 ) FreqVec
-  READ( GRNFile, REC = 5 ) Pos%theta
-  READ( GRNFile, REC = 6 ) Pos%sx
-  READ( GRNFile, REC = 7 ) Pos%sy
-  READ( GRNFile, REC = 8 ) Pos%sd
-  READ( GRNFile, REC = 9 ) Pos%rd
-  READ( GRNFile, REC = 10 ) cVec   ! Pos%r contains the phase speeds
+    READ( GRNFile, REC = 4  ) FreqVec
+    READ( GRNFile, REC = 5  ) Pos%theta
+    READ( GRNFile, REC = 6  ) Pos%Sx
+    READ( GRNFile, REC = 7  ) Pos%Sy
+    READ( GRNFile, REC = 8  ) Pos%Sz
+    READ( GRNFile, REC = 9  ) Pos%Rz
+    READ( GRNFile, REC = 10 ) cVec   ! Pos%r contains the phase speeds
 
-  k = 2 * pi * FreqVec( 1 ) / cVec
-  Delta_k = k( 2 ) - k( 1 )
+    Freq    = FreqVec( 1 )
+    k       = 2 * pi * Freq / cVec
+    Delta_k = k( 2 ) - k( 1 )
 
-END SUBROUTINE ReadHeader
+  END SUBROUTINE ReadHeader
 
-!**********************************************************************C
+  !**********************************************************************!
 
-SUBROUTINE SHADE( IratioDelta_r )
+  SUBROUTINE SHADE( IratioDelta_r )
 
-  ! Performs the transforms to convert the Green's function file to a shade file
-  ! Expects
-  !    k, Nk: The wavenumber data
-  !    sd, rd: Source depth, receiver depth data
-  ! Returns
-  !    Nothing
+    ! Performs the transforms to convert the Green's function file to a shade file
+    ! Expects
+    !    k, Nk: The wavenumber data
+    !    sz, rz: Source depth, receiver depth data
+    ! Returns
+    !    Nothing
 
-  USE SdRdRMod
-  USE beampatternMod
-  USE interpMod
-  IMPLICIT NONE
-  INTEGER, INTENT( IN ) :: IratioDelta_r
-  INTEGER               :: Isd, Ird, ISR, IRec
-  CHARACTER ( LEN=10 )  :: PlotType = '          '
-  REAL      ( KIND=8 )  :: kz2( Nk ), thetaT( Nk ), S( Nk )
-  REAL      ( KIND=8 )  :: omega, c0
+    USE SourceReceiverPositions
+    USE BeamPattern
+    USE interpolation
+    IMPLICIT NONE
+    INTEGER, INTENT( IN ) :: IratioDelta_r
+    INTEGER               :: Isz, Irz, ISR, IRec
+    CHARACTER ( LEN=10 )  :: PlotType = '          '
+    REAL      ( KIND=8 )  :: kz2( Nk ), thetaT( Nk ), S( Nk )
+    REAL      ( KIND=8 )  :: omega, c0
 
-  Rmin = Pos%r( 1 )
-  CALL WriteHeader( TRIM( FileRoot ) // '.shd', PlotTitle, Atten, PlotType )
+    Rmin = Pos%Rr( 1 )
+    CALL WriteHeader( TRIM( FileRoot ) // '.shd', PlotTitle, Atten, PlotType )
 
-  SourceDepth: DO Isd = 1, Pos%Nsd
-     WRITE( PRTFile, * ) 'Transform for source depth: ', Pos%sd( Isd )
+    SourceDepth: DO Isz = 1, Pos%NSz
+       WRITE( PRTFile, * ) 'Transform for source depth: ', Pos%sz( Isz )
 
-     RcvrDepth: DO Ird  = 1, Pos%Nrd
-        ISR  = ( Isd - 1 ) * Pos%Nrd + Ird   ! Index of source/receiver
-        IRec = 10 + ISR
-        READ( GRNFile, REC = IRec ) G( 1 : Nk )
+       RcvrDepth: DO Irz  = 1, Pos%NRz
+          ISR  = ( Isz - 1 ) * Pos%NRz + Irz   ! Index of source/receiver
+          IRec = 10 + ISR
+          READ( GRNFile, REC = IRec ) G( 1 : Nk )
 
-        ! apply the source beam pattern
-        IF ( SBPFlag == '*' ) THEN
-           c0    = 1500;   ! reference sound speed, should be speed at the source depth
-           omega = 2 * pi * freq
-           kz2   = omega ** 2 / c0 ** 2 - k( 1 : Nk ) ** 2      ! vertical wavenumber squared
-           WHERE ( kz2 < 0 ) kz2 = 0                            ! remove negative values
+          ! apply the source beam pattern
+          IF ( SBPFlag == '*' ) THEN
+             c0    = 1500;   ! reference sound speed, should be speed at the source depth
+             omega = 2 * pi * freq
+             kz2   = omega ** 2 / c0 ** 2 - k( 1 : Nk ) ** 2      ! vertical wavenumber squared
+             WHERE ( kz2 < 0 ) kz2 = 0                            ! remove negative values
 
-           thetaT = RadDeg * ATAN( SQRT( kz2 ) / k( 1 : Nk ) )  ! calculate the angle in degrees
-           CALL interp1( SrcBmPat( :, 1 ), SrcBmPat( :, 2 ), thetaT, S )
-           G( 1 : Nk ) = G( 1 : Nk ) * REAL( S )                ! apply the shading
-        END IF
+             thetaT = RadDeg * ATAN( SQRT( kz2 ) / k( 1 : Nk ) )  ! calculate the angle in degrees
+             CALL interp1( SrcBmPat( :, 1 ), SrcBmPat( :, 2 ), thetaT, S )
+             
+             G( 1 : Nk ) = G( 1 : Nk ) * REAL( S )                ! apply the shading
+          END IF
 
-        CALL InterpolateG( k, Atten, AttInt, G, Nk, kInterp, Ginterp, NT, Option )
+          CALL InterpolateG( k, Atten, AttInt, G, Nk, kInterp, Ginterp, NT, Option )
 
-        ! Evaluate either Fourier or Hankel transform
-        IF ( Option( 1 : 1 ) == 'X' ) THEN
-           CALL FourierTransform( NT, kInterp( 1 ), Delta_kInterp, AttInt, Rmin, Nrr, Delta_r, Ginterp, Temp, P )
-        ELSE
-           CALL HankelTransform(  NT, kInterp( 1 ), Delta_kInterp, AttInt, Rmin, Nrr, Delta_r, Ginterp, Temp, P, Option )
-        ENDIF
+          ! Evaluate either Fourier or Hankel transform
+          IF ( Option( 1 : 1 ) == 'X' ) THEN
+             CALL FourierTransform( NT, kInterp( 1 ), Delta_kInterp, AttInt, Rmin, NRr, Delta_r, Ginterp, Temp, P )
+          ELSE
+             CALL HankelTransform(  NT, kInterp( 1 ), Delta_kInterp, AttInt, Rmin, NRr, Delta_r, Ginterp, Temp, P, Option )
+          ENDIF
 
-        WRITE( SHDFile, REC = IRec ) P( 1 : NrrLast : IratioDelta_r )   ! Write out the field
+          WRITE( SHDFile, REC = IRec ) P( 1 : NRrLast : IratioDelta_r )   ! Write out the field
 
-     END DO RcvrDepth
-  END DO SourceDepth
+       END DO RcvrDepth
+    END DO SourceDepth
 
-END SUBROUTINE SHADE
+  END SUBROUTINE SHADE
 
-!**********************************************************************C
+  !**********************************************************************!
 
-SUBROUTINE InterpolateG( k, Atten, AttInt, G, Nk, kInterp, Ginterp, NT, Option )
+  SUBROUTINE InterpolateG( k, Atten, AttInt, G, Nk, kInterp, Ginterp, NT, Option )
 
-  ! Produces an evenly sampled kernel from input G
+    ! Produces an evenly sampled kernel from input G
 
-  USE PolyMod
-  IMPLICIT NONE
-  INTEGER, PARAMETER   :: ISize = 3
-  COMPLEX, PARAMETER   :: i = ( 0.0, 1.0 )
-  INTEGER, INTENT(IN)  :: Nk, Nt
-  REAL,    INTENT(IN)  :: k( Nk ), kInterp( Nt ), Atten, AttInt
-  COMPLEX, INTENT(IN)  :: G( Nk )
-  COMPLEX, INTENT(OUT) :: Ginterp( Nt )
-  INTEGER              :: ICenter, IRight, INew, It
-  COMPLEX              :: xinterp, x( ISize ), f( ISize ), Pade
-  CHARACTER   (LEN=80) :: ErrorMessage = '      '
-  CHARACTER   (LEN=3 ) :: Option
+    USE PolyMod
+    IMPLICIT NONE
+    INTEGER, PARAMETER   :: ISize = 3
+    COMPLEX, PARAMETER   :: i = ( 0.0, 1.0 )
+    INTEGER, INTENT(IN)  :: Nk, Nt
+    REAL,    INTENT(IN)  :: k( Nk ), kInterp( Nt ), Atten, AttInt
+    COMPLEX, INTENT(IN)  :: G( Nk )
+    COMPLEX, INTENT(OUT) :: Ginterp( Nt )
+    INTEGER              :: ICenter, IRight, INew, It
+    COMPLEX              :: xinterp, x( ISize ), f( ISize ), Pade
+    CHARACTER   (LEN=80) :: ErrorMessage = '      '
+    CHARACTER   (LEN=3 ) :: Option
 
-  ! Initialize interpolation data
-  ICenter = ISize / 2 + 1   ! counter to mark center of abscissas used for interpolation
-  IRight  = ISize
-  INew    = ISize
+    ! Initialize interpolation data
+    ICenter = ISize / 2 + 1   ! counter to mark center of abscissas used for interpolation
+    IRight  = ISize
+    INew    = ISize
 
-  x( 1 : ISize ) = ( k( 1 : ISize ) + i * Atten )**2   ! abscissa
-  f( 1 : ISize ) = G( 1 : ISize )                      ! ordinate
+    x( 1 : ISize ) = ( k( 1 : ISize ) + i * Atten )**2   ! abscissa
+    f( 1 : ISize ) = G( 1 : ISize )                      ! ordinate
 
-  DO It = 1, NT ! Main loop: step through values in kInterp
+    DO It = 1, NT ! Main loop: step through values in kInterp
 
-     ! Desirable/possible to advance interpolation window?
-     DO WHILE ( kInterp( It ) > k( ICenter ) .AND. IRight < Nk )
-        ICenter = ICenter + 1
-        IRight  = IRight  + 1
-        INew    = MOD( INew, ISize ) + 1   ! this is the next open slot
+       ! Desirable/possible to advance interpolation window?
+       DO WHILE ( kInterp( It ) > k( ICenter ) .AND. IRight < Nk )
+          ICenter = ICenter + 1
+          IRight  = IRight  + 1
+          INew    = MOD( INew, ISize ) + 1   ! this is the next open slot
 
-        x( INew ) = ( k( IRight ) + i * Atten ) ** 2
-        f( INew ) = G( IRight )
-     END DO
+          x( INew ) = ( k( IRight ) + i * Atten ) ** 2
+          f( INew ) = G( IRight )
+       END DO
 
-     ! Interpolate or zero fill
-     IF ( kInterp( It ) <= k( Nk ) ) THEN
-        xinterp = ( kInterp( It ) + i * AttInt ) ** 2
-        IF ( Option( 3 : 3 ) == 'O' ) THEN
-           Ginterp( It ) = Poly( xinterp, x, f, ISize )   ! polynomial
-        ELSE
-           Ginterp( It ) = Pade( xinterp, x, f, ISize, ErrorMessage )   ! Pade
-        ENDIF
+       ! Interpolate or zero fill
+       IF ( kInterp( It ) <= k( Nk ) ) THEN
+          xinterp = ( kInterp( It ) + i * AttInt ) ** 2
+          IF ( Option( 3 : 3 ) == 'O' ) THEN
+             Ginterp( It ) = Poly( xinterp, x, f, ISize )   ! polynomial
+          ELSE
+             Ginterp( It ) = Pade( xinterp, x, f, ISize, ErrorMessage )   ! Pade
+          ENDIF
 
-        IF ( ErrorMessage( 1 : 6 ) /= '      ' ) WRITE( PRTFile, * ) ErrorMessage
-     ELSE
-        Ginterp( It ) = 0.0
-     ENDIF
-  END DO
+          IF ( ErrorMessage( 1 : 6 ) /= '      ' ) WRITE( PRTFile, * ) ErrorMessage
+       ELSE
+          Ginterp( It ) = 0.0
+       ENDIF
+    END DO
 
-END SUBROUTINE InterpolateG
+  END SUBROUTINE InterpolateG
 
 END PROGRAM FIELDS
