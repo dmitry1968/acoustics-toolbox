@@ -1,35 +1,14 @@
 MODULE bellhopMod
 
-  USE MathConstantsMod
-  INTEGER, PARAMETER :: PRTFile = 6, MaxN = 100000
+  USE MathConstants
+  INTEGER, PARAMETER :: ENVFile = 5, PRTFile = 6, RAYFile = 21, SHDFile = 25, ARRFile = 36, SSPFile = 40, MaxN = 100000
 
   ! Reduce MaxN (= max # of steps along a ray) to reduce storage
   ! Note space is wasted in NumTopBnc, NumBotBnc ...
 
-  INTEGER            :: Nrd_per_range, iStep
-  REAL    ( KIND= 8) :: freq, omega
+  INTEGER            :: Nrz_per_range, iStep
+  REAL    ( KIND= 8) :: freq, omega, SrcDeclAngle, SrcAzimAngle
   CHARACTER (LEN=80) :: Title
-
-  ! *** Halfspace properties structure ***
-
-  TYPE HSInfo
-     REAL     (KIND=8) :: alphaR, alphaI, betaR, betaI  ! compressional and shear wave speeds/attenuations in user units
-     COMPLEX  (KIND=8) :: cP, cS                 ! P-wave, S-wave speeds
-     REAL     (KIND=8) :: rho, Depth             ! density, depth
-     REAL     (KIND=8) :: BumpDensity, eta, xi   ! Twersky boss parameters
-     CHARACTER (LEN=1) :: BC                     ! Boundary condition type
-     CHARACTER (LEN=6) :: Opt
-  END TYPE HSInfo
-
-  TYPE BdryPt
-     TYPE( HSInfo )   :: HS
-  END TYPE
-
-  TYPE BdryType
-     TYPE( BdryPt )   :: Top, Bot
-  END TYPE BdryType
-
-  TYPE(BdryType) :: Bdry
 
   ! *** Beam structure ***
 
@@ -57,7 +36,7 @@ MODULE bellhopMod
   END TYPE ray2DPt
   TYPE( ray2DPt )     :: ray2D( MaxN )
 
-  ! uncomment COMPLEX below if using Cerveny beams !!!
+  ! uncomment COMPLEX below if using paraxial beams !!!
   TYPE ray3DPt
      REAL    (KIND=8) :: p_tilde( 2 ), q_tilde( 2 ), p_hat( 2 ), q_hat( 2 ), DetQ
      REAL    (KIND=8) :: x( 3 ), t( 3 ), phi, c, Amp, Phase
@@ -66,6 +45,6 @@ MODULE bellhopMod
      COMPLEX (KIND=8) :: tau
 
   END TYPE ray3DPt
-  TYPE( ray3DPt )      :: ray3D( MaxN )
+  TYPE( ray3DPt )     :: ray3D( MaxN )
 
 END MODULE bellhopMod

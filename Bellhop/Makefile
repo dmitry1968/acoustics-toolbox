@@ -1,10 +1,10 @@
 
 EXECUTABLES = bellhop.exe bellhop3d.exe
 
-BELLHOP_OBJECTS   = bellhop.o   angleMod.o ArrMod.o bdryMod.o   bellhopMod.o ReadEnvironment.o sspMod.o influence.o ../misc/libmisc.a
+BELLHOP_OBJECTS   = angleMod.o ArrMod.o bdryMod.o   bellhopMod.o sspMod.o ReflectMod.o                       WriteRay.o              influence.o               Step.o   ReadEnvironmentBell.o bellhop.o ../misc/libmisc.a
 BELLHOP_LIBS = -L../misc -lmisc
 
-BELLHOP3D_OBJECTS = bellhop3D.o angleMod.o ArrMod.o bdry3DMod.o bellhopMod.o ReadEnvironment.o sspMod.o influence.o influence3D.o ../misc/libmisc.a
+BELLHOP3D_OBJECTS = angleMod.o ArrMod.o bdry3DMod.o bellhopMod.o sspMod.o ReflectMod.o Reflect3DMod.o Cone.o WriteRay.o RayNormals.o influence.o influence3D.o Step3DMod.o ReadEnvironmentBell.o bellhop3D.o ../misc/libmisc.a
 BELLHOP3D_LIBS = -L../misc -lmisc
 
 all: $(EXECUTABLES)
@@ -54,17 +54,42 @@ bdry3DMod.o bdry3dmod.mod: bdry3DMod.f90
 	$(FC) -c $(FFLAGS) $< 
 
 bellhopMod.o bellhopmod.mod: bellhopMod.f90
-	$(FC) -c $(FFLAGS) $<  
+	$(FC) -c $(FFLAGS) $< 
+
+Cone.o cone.mod: Cone.f90
+	$(FC) -c $(FFLAGS) $<
+
+influence.o influence.mod: influence.f90
+	$(FC) -c $(FFLAGS) $< 
+
+influence3D.o influence3d.mod: influence3D.f90
+	$(FC) -c $(FFLAGS) $< 
+
+RayNormals.o raynormals.mod: RayNormals.f90
+	$(FC) -c $(FFLAGS) $<
+
+ReadEnvironmentBell.o readenvironmentbell.mod: ReadEnvironmentBell.f90
+	$(FC) -c $(FFLAGS) $< 
+
+ReflectMod.o   reflectmod.mod:   ReflectMod.f90   Cone.o
+	$(FC) -c $(FFLAGS) $<
+
+Reflect3DMod.o reflect3dmod.mod: Reflect3DMod.f90 Cone.o
+	$(FC) -c $(FFLAGS) $<
 
 sspMod.o sspmod.mod: sspMod.f90
 	$(FC) -c $(FFLAGS) $< 
 
-bellhop.o:   arrmod.mod bellhopmod.mod anglemod.mod bdrymod.mod   sspmod.mod bellhop.f90
-bellhop3D.o: arrmod.mod bellhopmod.mod anglemod.mod bdry3dmod.mod sspmod.mod bellhop3D.f90
+Step.o step.mod: Step.f90
+	$(FC) -c $(FFLAGS) $<
 
-ReadEnvironment.o:    anglemod.mod sspmod.mod ReadEnvironment.f90
+Step3DMod.o step3dmod.mod: Step3DMod.f90
+	$(FC) -c $(FFLAGS) $<
 
-influence.o:   influence.f90
-influence3D.o: influence3D.f90
+WriteRay.o writeray.mod: WriteRay.f90
+	$(FC) -c $(FFLAGS) $<
 
+bellhop.o:   arrmod.mod anglemod.mod bdrymod.mod   readenvironmentbell.mod bellhopmod.mod sspmod.mod reflectmod.mod                  writeray.mod raynormals.mod influence.mod   step.mod      bellhop.f90
+
+bellhop3D.o: arrmod.mod anglemod.mod bdry3dmod.mod readenvironmentbell.mod bellhopmod.mod sspmod.mod reflectmod.mod reflect3dmod.mod writeray.mod raynormals.mod influence3d.mod step3dmod.mod bellhop3D.f90
 

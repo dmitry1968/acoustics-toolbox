@@ -2,7 +2,7 @@ MODULE bdry3Dmod
 
   ! Loads
   ! altimetry (top bdry) and bathymetry (bottom bdry) data
-  ! This version is for the BELLHOP3D
+  ! This version is for BELLHOP3D
   !
   ! x = coordinate of boundary
   ! t = tangent for a facet
@@ -11,6 +11,8 @@ MODULE bdry3Dmod
   ! Len = length of tangent (temporary variable to normalize tangent)
 
   USE SubTabulate
+  USE FatalError
+
   IMPLICIT NONE
   SAVE
   INTEGER, PARAMETER :: ATIFile = 40, BTYFile = 41, Number_to_Echo = 21
@@ -28,7 +30,8 @@ MODULE bdry3Dmod
 
   REAL (KIND=8), ALLOCATABLE :: BotGlobalx( : ), BotGlobaly( : ), TopGlobalx( : ), TopGlobaly( : )
   TYPE BdryPt
-     REAL (KIND=8) :: x( 3 ), t( 3 ), n( 3 ), n1( 3 ), n2( 3 ), Len, Noden( 3 )
+     REAL (KIND=8) :: x( 3 ), t( 3 ), n( 3 ), n1( 3 ), n2( 3 ), Len, Noden( 3 ), Noden_unscaled( 3 ), z_xx, z_xy, z_yy, &
+          phi_xx, phi_xy, phi_yy, kappa_xx, kappa_xy, kappa_yy
   END TYPE BdryPt
 
   TYPE(BdryPt), ALLOCATABLE :: Bot( :, : ), Top( :, : )
@@ -37,8 +40,6 @@ CONTAINS
 
   SUBROUTINE ReadATI3D( FileRoot, TopATI, DepthT, PRTFile )
 
-    USE norms
-    IMPLICIT NONE
     CHARACTER (LEN= 1), INTENT( IN ) :: TopATI        ! Set to '~' if altimetry is not flat
     INTEGER,            INTENT( IN ) :: PRTFile       ! unit number for print file
     REAL      (KIND=8), INTENT( IN ) :: DepthT        ! Nominal top depth
@@ -53,7 +54,7 @@ CONTAINS
        OPEN( UNIT = ATIFile, FILE = TRIM( FileRoot ) // '.ati', STATUS = 'OLD', IOSTAT = IOStat, ACTION = 'READ' )
        IF ( IOsTAT /= 0 ) THEN
           WRITE( PRTFile, * ) 'ATIFile = ', TRIM( FileRoot ) // '.ati'
-          CALL ERROUT( PRTFile, 'F', 'ReadATI', 'Unable to open altimetry file' )
+          CALL ERROUT( 'ReadATI', 'Unable to open altimetry file' )
        END IF
 
        READ(  ATIFile, * ) atiType
@@ -63,7 +64,7 @@ CONTAINS
        CASE ( 'C' )
           WRITE( PRTFile, * ) 'Regular grid for a 3D run (curvilinear)'
        CASE DEFAULT
-          CALL ERROUT( PRTFile, 'F', 'ReadATI3D', 'Unknown option for selecting altimetry interpolation' )
+          CALL ERROUT( 'ReadATI3D', 'Unknown option for selecting altimetry interpolation' )
        END SELECT
 
        ! x values
@@ -73,13 +74,13 @@ CONTAINS
 
        ALLOCATE( TopGlobalx( MAX( NatiPts( 1 ), 3 ) ), Stat = IAllocStat )
        IF ( IAllocStat /= 0 ) &
-            CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Insufficient memory for altimetry data: reduce # ati points' )
+            CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Insufficient memory for altimetry data: reduce # ati points' )
 
        TopGlobalx( 3 ) = -999.9
        READ(  ATIFile, * ) TopGlobalx( 1 : NatiPts( 1 ) )
        CALL SubTab( TopGlobalx, NatiPts( 1 ) )
        WRITE( PRTFile, "( 5G14.6 )" ) ( TopGlobalx( ix ), ix = 1, MIN( NatiPts( 1 ), Number_to_Echo ) )
-       IF ( NatiPts( 1 ) > Number_to_Echo ) WRITE( PRTFile, * ) ' ... ', TopGlobalx( NatiPts( 1 ) )
+       IF ( NatiPts( 1 ) > Number_to_Echo ) WRITE( PRTFile, "( G14.6 )" ) ' ... ', TopGlobalx( NatiPts( 1 ) )
 
        ! y values
        READ(  ATIFile, * ) NatiPts( 2 )
@@ -88,13 +89,13 @@ CONTAINS
 
        ALLOCATE( TopGlobaly( MAX( NatiPts( 2 ), 3 ) ), Stat = IAllocStat )
        IF ( IAllocStat /= 0 ) &
-            CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Insufficient memory for altimetry data: reduce # ati points' )
+            CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Insufficient memory for altimetry data: reduce # ati points' )
 
        TopGlobaly( 3 ) = -999.9
        READ(  ATIFile, * ) TopGlobaly( 1 : NatiPts( 2 ) )
        CALL SubTab( TopGlobaly, NatiPts( 2 ) )
        WRITE( PRTFile, "( 5G14.6 )" ) ( TopGlobaly( iy ), iy = 1, MIN( NatiPts( 2 ), Number_to_Echo ) )
-       IF ( NatiPts( 2 ) > Number_to_Echo ) WRITE( PRTFile, * ) ' ... ', TopGlobaly( NatiPts( 2 ) )
+       IF ( NatiPts( 2 ) > Number_to_Echo ) WRITE( PRTFile, "( G14.6 )"  ) ' ... ', TopGlobaly( NatiPts( 2 ) )
 
        TopGlobalx = 1000. * TopGlobalx   ! convert km to m
        TopGlobaly = 1000. * TopGlobaly
@@ -102,7 +103,7 @@ CONTAINS
        ! z values
        ALLOCATE( Top( NatiPts( 1 ), NatiPts( 2 ) ), Temp( NatiPts( 1 ) ), Stat = IAllocStat )
        IF ( IAllocStat /= 0 ) &
-            CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Insufficient memory for altimetry data: reduce # ati points' )
+            CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Insufficient memory for altimetry data: reduce # ati points' )
 
        WRITE( PRTFile, * )
 
@@ -113,14 +114,14 @@ CONTAINS
           !    WRITE( PRTFile, FMT = "(G11.3)" ) Top( :, iy )%x( 3 )
           ! END IF
           ! IF ( ANY( Top( :, iy )%x( 3 ) > DepthB ) ) THEN
-          !    CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Altimetry drops below lowest point in the sound speed profile' )
+          !    CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Altimetry drops below lowest point in the sound speed profile' )
           ! END IF
        END DO
 
        CLOSE( ATIFile )
 
        IF ( ANY( ISNAN( Top( :, : )%x( 3 ) ) ) ) THEN
-          CALL ERROUT( PRTFile, 'W', 'BELLHOP3D:ReadATI3D', 'The altimetry file contains a NaN' )
+          WRITE( PRTFile, * ) 'Warning in BELLHOP3D - ReadATI3D : The altimetry file contains a NaN'
        END IF
  
        DO ix = 1, NatiPts( 1 ) 
@@ -136,11 +137,11 @@ CONTAINS
        atiType = 'R'
        NatiPts = [ 2, 2 ]
        ALLOCATE( TopGlobalx( 2 ), Stat = IAllocStat )
-       IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Insufficient memory' )
+       IF ( IAllocStat /= 0 ) CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Insufficient memory' )
        ALLOCATE( TopGlobaly( 2 ), Stat = IAllocStat )
-       IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Insufficient memory' )
+       IF ( IAllocStat /= 0 ) CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Insufficient memory' )
        ALLOCATE( Top( 2, 2 ), Stat = IAllocStat )
-       IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadATI3D', 'Insufficient memory'  )
+       IF ( IAllocStat /= 0 ) CALL ERROUT( 'BELLHOP3D:ReadATI3D', 'Insufficient memory'  )
 
        !big = sqrt( huge( Top( 1, 1 )%x ) ) / 1.0d5
 
@@ -184,8 +185,6 @@ CONTAINS
 
     ! Reads in the bottom bathymetry
 
-    USE norms
-    IMPLICIT NONE
     CHARACTER (LEN= 1), INTENT( IN ) :: BotBTY        ! Set to '~' if bathymetry is not flat
     INTEGER,            INTENT( IN ) :: PRTFile       ! unit number for print file
     REAL      (KIND=8), INTENT( IN ) :: DepthB        ! Nominal bottom depth
@@ -200,7 +199,7 @@ CONTAINS
        OPEN( UNIT = BTYFile, FILE = TRIM( FileRoot ) // '.bty', STATUS = 'OLD', IOSTAT = IOStat, ACTION = 'READ' )
        IF ( IOStat /= 0 ) THEN
          WRITE( PRTFile, * ) 'BTYFile = ', TRIM( FileRoot ) // '.bty'
-         CALL ERROUT( PRTFile, 'F', 'ReadBTY3D', 'Unable to open bathymetry file' )
+         CALL ERROUT( 'ReadBTY3D', 'Unable to open bathymetry file' )
        END IF
  
        READ( BTYFile, * ) btyType
@@ -211,7 +210,7 @@ CONTAINS
        CASE ( 'C' )
           WRITE( PRTFile, * ) 'Regular grid for a 3D run (curvilinear)'
        CASE DEFAULT
-          CALL ERROUT( PRTFile, 'F', 'ReadBTY3D', 'Unknown option for selecting bathymetry interpolation' )
+          CALL ERROUT( 'ReadBTY3D', 'Unknown option for selecting bathymetry interpolation' )
        END SELECT
 
        ! x values
@@ -221,13 +220,13 @@ CONTAINS
 
        ALLOCATE( BotGlobalx( MAX( NbtyPts( 1 ), 3 ) ), Stat = IAllocStat )
        IF ( IAllocStat /= 0 ) &
-          CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadBTY3D', 'Insufficient memory for bathymetry data: reduce # bty points' )
+          CALL ERROUT( 'BELLHOP3D:ReadBTY3D', 'Insufficient memory for bathymetry data: reduce # bty points' )
 
        BotGlobalx( 3 ) = -999.9
        READ(  BTYFile, * ) BotGlobalx( 1 : NbtyPts( 1 ) )
        CALL SubTab( BotGlobalx, NbtyPts( 1 ) )
        WRITE( PRTFile, "( 5G14.6 )" ) ( BotGlobalx( ix ), ix = 1, MIN( NbtyPts( 1 ), Number_to_Echo ) )
-       IF ( NbtyPts( 1 ) > Number_to_Echo ) WRITE( PRTFile, * ) ' ... ', BotGlobalx( NbtyPts( 1 ) )
+       IF ( NbtyPts( 1 ) > Number_to_Echo ) WRITE( PRTFile, "( G14.6 )" ) ' ... ', BotGlobalx( NbtyPts( 1 ) )
 
        ! y values
        READ(  BTYFile, * ) NbtyPts( 2 )
@@ -236,13 +235,13 @@ CONTAINS
 
        ALLOCATE( BotGlobaly( MAX( NbtyPts( 2 ), 3 ) ), Stat = IAllocStat )
        IF ( IAllocStat /= 0 ) &
-          CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadBTY3D', 'Insufficient memory for bathymetry data: reduce # bty points' )
+          CALL ERROUT( 'BELLHOP3D:ReadBTY3D', 'Insufficient memory for bathymetry data: reduce # bty points' )
 
        BotGlobaly( 3 ) = -999.9
        READ(  BTYFile, * ) BotGlobaly( 1 : NbtyPts( 2 ) )
        CALL SubTab( BotGlobaly, NbtyPts( 2 ) )
        WRITE( PRTFile, "( 5G14.6 )" ) ( BotGlobaly( iy ), iy = 1, MIN( NbtyPts( 2 ), Number_to_Echo ) )
-       IF ( NbtyPts( 2 ) > Number_to_Echo ) WRITE( PRTFile, * ) ' ... ', BotGlobaly( NbtyPts( 2 ) )
+       IF ( NbtyPts( 2 ) > Number_to_Echo ) WRITE( PRTFile, "( G14.6 )" ) ' ... ', BotGlobaly( NbtyPts( 2 ) )
 
        BotGlobalx = 1000. * BotGlobalx   ! convert km to m
        BotGlobaly = 1000. * BotGlobaly
@@ -250,7 +249,7 @@ CONTAINS
        ! z values
        ALLOCATE( Bot( NbtyPts( 1 ), NbtyPts( 2 ) ), Temp( NbtyPts( 1 ) ), Stat = IAllocStat )
        IF ( IAllocStat /= 0 ) &
-          CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadBTY3D', 'Insufficient memory for bathymetry data: reduce # bty points' )
+          CALL ERROUT( 'BELLHOP3D:ReadBTY3D', 'Insufficient memory for bathymetry data: reduce # bty points' )
 
        WRITE( PRTFile, * )
 
@@ -260,14 +259,14 @@ CONTAINS
           !    WRITE( PRTFile, FMT = "(G11.3)" ) Bot( :, iy )%x( 3 )
           ! END IF
           ! IF ( ANY( Bot( :, iy )%x( 3 ) > DepthB ) ) THEN
-          !    CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadBTY3D', 'Bathymetry drops below lowest point in the sound speed profile' )
+          !    CALL ERROUT( 'BELLHOP3D:ReadBTY3D', 'Bathymetry drops below lowest point in the sound speed profile' )
           ! END IF
        END DO
 
        CLOSE( BTYFile )
 
        IF ( ANY( ISNAN( Bot( :, : )%x( 3 ) ) ) ) THEN
-          CALL ERROUT( PRTFile, 'W', 'BELLHOP3D:ReadBTY3D', 'The bathymetry file contains a NaN' )
+          WRITE( PRTFile, * ) 'Warning in BELLHOP3D - ReadBTY3D : The bathymetry file contains a NaN'
        END IF
  
        DO ix = 1, NbtyPts( 1 ) 
@@ -282,11 +281,11 @@ CONTAINS
        btyType = 'R'
        NbtyPts = [ 2, 2 ]
        ALLOCATE( BotGlobalx( 2 ), Stat = IAllocStat )
-       IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadBTY3D', 'Insufficient memory' )
+       IF ( IAllocStat /= 0 ) CALL ERROUT( 'BELLHOP3D:ReadBTY3D', 'Insufficient memory' )
        ALLOCATE( BotGlobaly( 2 ), Stat = IAllocStat )
-       IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'BELLHOP3D:ReadBTY3D', 'Insufficient memory' )
+       IF ( IAllocStat /= 0 ) CALL ERROUT( 'BELLHOP3D:ReadBTY3D', 'Insufficient memory' )
        ALLOCATE( Bot( 2, 2 ), Stat = IAllocStat )
-       IF ( IAllocStat /= 0 ) CALL ERROUT( PRTFile, 'F', 'BELLHOP', 'Insufficient memory'  )
+       IF ( IAllocStat /= 0 ) CALL ERROUT( 'BELLHOP', 'Insufficient memory'  )
 
        ! big = sqrt( huge( Bot( 1, 1 )%x ) ) / 1.0d5
 
@@ -353,7 +352,7 @@ CONTAINS
           WRITE( PRTFile, * ) 'x = ', x( 1 )
           WRITE( PRTFile, * ) 'xMin = ', Top( 1           , 1 )%x( 1 )
           WRITE( PRTFile, * ) 'xMax = ', Top( NatiPts( 1 ), 1 )%x( 1 )
-          CALL ERROUT( PRTFile, 'W', 'GetTopSeg3D', 'Altimetry undefined above the ray' )
+          WRITE( PRTFile, * ) 'Warning in GetTopSeg3D : Altimetry undefined above the ray'
        ENDIF
     END IF
 
@@ -373,7 +372,7 @@ CONTAINS
           WRITE( PRTFile, * ) 'y = ', x( 2 )
           WRITE( PRTFile, * ) 'yMin = ', Top( 1, 1            )%x( 2 )
           WRITE( PRTFile, * ) 'yMax = ', Top( 1, NatiPts( 2 ) )%x( 2 )
-          CALL ERROUT( PRTFile, 'W', 'GetTopSeg3D', 'Altimetry undefined above the ray' )
+          WRITE( PRTFile, * ) 'Warning in GetTopSeg3D : Altimetry undefined above the ray'
        ENDIF
     END IF
 
@@ -412,9 +411,59 @@ CONTAINS
 
     ! x coordinate
 
-    IF ( x( 1 ) < xBotSeg( 1 ) .OR. x( 1 ) > xBotSeg( 2 ) ) THEN
+    IF ( x( 1 ) < xBotSeg( 1 ) .OR. x( 1 ) > xBotSeg( 2 ) ) THEN   ! are we outside the segment?
 
+       ! calculate index of bracketting segment
        IsegBotT = MAXLOC( Bot( :, 1 )%x( 1 ), Bot( :, 1 )%x( 1 ) < x( 1 ) )
+
+!!$       ! The above MAXLOC is concise, but it's unnecessarily testing every segment
+!!$       ! Only need to test adjacent segments; however, this doesn't seem to be much faster
+!!$       ! we reached the same conclusion in SSPMod/Quad
+
+!!$       IF ( xBotSeg( 1 ) == big ) THEN   ! for first call we do a full search in a lazy way
+!!$          IsegBotT = MAXLOC( Bot( :, 1 )%x( 1 ), Bot( :, 1 )%x( 1 ) < x( 1 ) )
+!!$       ELSE
+!!$          ! search left
+!!$          DO WHILE ( x( 1 ) < xBotSeg( 1 ) .AND. IsegBotx > 1 )
+!!$             IsegBotx = IsegBotx - 1
+!!$             xBotSeg  = [ Bot( IsegBotx, 1 )%x( 1 ), Bot( IsegBotx + 1, 1 )%x( 1 ) ]   ! segment limits in range
+!!$          END DO
+!!$
+!!$          ! search right
+!!$          DO WHILE ( x( 1 ) > xBotSeg( 2 ) .AND. IsegBotx < NbtyPts( 1 ) - 1 )
+!!$             IsegBotx = IsegBotx + 1
+!!$             xBotSeg  = [ Bot( IsegBotx, 1 )%x( 1 ), Bot( IsegBotx + 1, 1 )%x( 1 ) ]   ! segment limits in range
+!!$          END DO
+!!$
+!!$          IsegBotT( 1 ) = IsegBotx
+!!$       END IF
+!!$
+!!$       ! if we didn't find a bracketting segment set the segment to 0 indicating a failure
+!!$       IsegBotx = IsegBotT( 1 )
+!!$       xBotSeg  = [ Bot( IsegBotx, 1 )%x( 1 ), Bot( IsegBotx + 1, 1 )%x( 1 ) ] 
+!!$       IF ( x( 1 ) < xBotSeg( 1 ) .OR. x( 1 ) > xBotSeg( 2 ) ) IsegBotT( 1 ) = 0
+
+!!$       ! Here's yet another way to do the search for the segment
+!!$       ! on the first call, need to do a full search
+!!$       IF ( xBotSeg( 1 ) == big ) THEN
+!!$          IsegBotT = MAXLOC( Bot( :, 1 )%x( 1 ), Bot( :, 1 )%x( 1 ) < x( 1 ) )
+!!$       ELSE
+!!$          DO
+!!$             IF (      x( 1 ) < xBotSeg( 1 ) ) THEN
+!!$                IF ( IsegBotx <= 0            ) EXIT
+!!$                IsegBotx = IsegBotx - 1
+!!$             ELSE IF ( x( 1 ) > xBotSeg( 2 ) ) THEN
+!!$                IF ( IsegBotx >= NBtyPts( 1 ) ) EXIT
+!!$                IsegBotx = IsegBotx + 1
+!!$             ELSE
+!!$                EXIT
+!!$             END IF
+!!$
+!!$             xBotSeg  = [ Bot( IsegBotx, 1 )%x( 1 ), Bot( IsegBotx + 1, 1 )%x( 1 ) ]   ! segment limits in range
+!!$          END DO
+!!$
+!!$          IsegBotT( 1 ) = IsegBotx
+!!$       END IF
 
        IF ( IsegBotT( 1 ) > 0 .AND. IsegBotT( 1 ) < NbtyPts( 1 ) ) THEN  ! IsegBot MUST LIE IN [ 1, NbtyPts-1 ]
           Goodx = .TRUE.
@@ -427,7 +476,7 @@ CONTAINS
           WRITE( PRTFile, * ) 'x = ', x( 1 )
           WRITE( PRTFile, * ) 'xMin = ', Bot( 1           , 1 )%x( 1 )
           WRITE( PRTFile, * ) 'xMax = ', Bot( NbtyPts( 1 ), 1 )%x( 1 )
-          CALL ERROUT( PRTFile, 'W', 'GetBotSeg3D', 'Bathymetry undefined below the ray' )
+          WRITE( PRTFile, * ) 'Warning in GetBotSeg3D : Bathymetry undefined below the ray'
        ENDIF
 
     END IF
@@ -437,6 +486,28 @@ CONTAINS
     IF ( x( 2 ) < yBotSeg( 1 ) .OR. x( 2 ) > yBotSeg( 2 ) ) THEN
 
        IsegBotT = MAXLOC( Bot( 1, : )%x( 2 ), Bot( 1, : )%x( 2 ) < x( 2 ) )
+
+!!$       ! The above MAXLOC is concise, but it's unnecessarily testing every segment
+!!$       ! Only need to test adjacent segments; however, this doesn't seem to be much faster
+!!$       ! on the first call, need to do a full search
+!!$       IF ( yBotSeg( 1 ) == big ) THEN
+!!$          IsegBotT = MAXLOC( Bot( 1, : )%x( 2 ), Bot( 1, : )%x( 2 ) < x( 2 ) )
+!!$       ELSE
+!!$          DO
+!!$             IF (      x( 2 ) < yBotSeg( 1 ) ) THEN
+!!$                IF ( IsegBoty <= 0            ) EXIT
+!!$                IsegBoty = IsegBoty - 1
+!!$             ELSE IF ( x( 2 ) > yBotSeg( 2 ) ) THEN
+!!$                IF ( IsegBoty >= NBtyPts( 2 ) ) EXIT
+!!$                IsegBoty = IsegBoty + 1
+!!$             ELSE
+!!$                EXIT
+!!$             END IF
+!!$             yBotSeg  = [ Bot( 1, IsegBoty )%x( 2 ), Bot( 1, IsegBoty + 1 )%x( 2 ) ]   ! segment limits in range
+!!$          END DO
+!!$
+!!$          IsegBotT( 1 ) = IsegBoty
+!!$       END IF
 
        IF ( IsegBotT( 1 ) > 0 .AND. IsegBotT( 1 ) < NbtyPts( 2 ) ) THEN  ! IsegBot MUST LIE IN [ 1, NbtyPts-1 ]
           Goody = .TRUE.
@@ -449,7 +520,7 @@ CONTAINS
           WRITE( PRTFile, * ) 'y = ', x( 2 )
           WRITE( PRTFile, * ) 'yMin = ', Bot( 1, 1            )%x( 2 )
           WRITE( PRTFile, * ) 'yMax = ', Bot( 1, NbtyPts( 2 ) )%x( 2 )
-          CALL ERROUT( PRTFile, 'W', 'GetBotSeg3D', 'Bathymetry undefined below the ray' )
+          WRITE( PRTFile, * ) 'Warning in GetBotSeg3D : Bathymetry undefined below the ray'
        ENDIF
 
     END IF
@@ -466,7 +537,7 @@ CONTAINS
        ELSE
           Botn = Bot( IsegBotx, IsegBoty )%n2
        END IF
-    
+
        ! if the Bot depth is bad (a NaN) then set the segment flags to indicate that
        IF ( ISNAN( Botx( 3 ) ) .OR. ANY( ISNAN( Botn ) ) ) THEN
           IsegBotx = 0
@@ -488,10 +559,10 @@ CONTAINS
     ! The boundary is also extended with a constant depth to infinity to cover cases where the ray
     ! exits the domain defined by the user
 
-    USE norms
     INTEGER                          :: NPts( 2 ) = [ 0, 0 ]
     REAL      (KIND=8)               :: p1( 3 ), p2( 3 ), p3( 3 ), p4( 3 ), U( 3 ), V( 3 )
     REAL      (KIND=8)               :: n1( 3 ), n2( 3 )      ! normal vectors to the pair of triangles
+    REAL      (KIND=8)               :: tvec( 3 ), Len
     TYPE(BdryPt)                     :: Bdry( :, : )
     CHARACTER (LEN=3),  INTENT( IN ) :: BotTop           ! Flag indicating bottom or top reflection
     CHARACTER (LEN=2)                :: CurvilinearFlag = '-'
@@ -525,7 +596,7 @@ CONTAINS
           n1( 3 ) = U( 1 ) * V( 2 ) - U( 2 ) * V( 1 )
           IF ( BotTop == 'Top' ) n1 = -n1
 
-          Bdry( ix, iy )%n1 = n1 / NORM2b( n1 )   ! scale to make it a unit normal
+          Bdry( ix, iy )%n1 = n1 / NORM2( n1 )   ! scale to make it a unit normal
 
           ! edges for triangle 2
           U = p3 - p1   ! tangent along one edge
@@ -537,7 +608,7 @@ CONTAINS
           n2( 3 ) = U( 1 ) * V( 2 ) - U( 2 ) * V( 1 )
           IF ( BotTop == 'Top' ) n2 = -n2
           
-          Bdry( ix, iy )%n2 = n2 / NORM2b( n2 )   ! scale to make it a unit normal
+          Bdry( ix, iy )%n2 = n2 / NORM2( n2 )   ! scale to make it a unit normal
        
        END DO
     END DO
@@ -568,10 +639,99 @@ CONTAINS
                   ( Bdry( ix    , iy + 1 )%x( 2 ) - Bdry( ix    , iy - 1 )%x( 2 ) )
           END IF
 
-          n = [ -mx, -my, 1.0D0 ]
-          Bdry( ix, iy )%Noden = n / NORM2b( n )          
+          n = [ -mx, -my, 1.0D0 ]   ! this a normal to the surface
+
+          IF ( ix < NPts( 1 ) .AND. iy < NPts( 2 ) ) THEN
+             ! xx term
+             Bdry( ix, iy )%phi_xx = atan2( n( 3 ), n( 1 ) )   ! this is the angle at each node
+
+             ! xy term
+             tvec = Bdry( ix + 1, iy + 1 )%x - Bdry( ix, iy )%x
+             Len  = SQRT( tvec( 1 ) ** 2 + tvec( 2 ) ** 2 )
+             tvec = tvec / Len
+             Bdry( ix, iy )%phi_xy = atan2( n( 3 ), n( 1 ) * tvec( 1 ) + n( 2 ) * tvec( 2 ) )   ! this is the angle at each node
+
+             ! yy term
+             Bdry( ix, iy )%phi_yy = atan2( n( 3 ), n( 2 ) )   ! this is the angle at each node
+          END IF
+
+          Bdry( ix, iy )%Noden_unscaled = n
+          Bdry( ix, iy )%Noden = n / NORM2( n )          
        END DO
     END DO
+
+    IF ( CurvilinearFlag( 1 : 1 ) == 'C' ) THEN ! curvilinear option: compute derivative as centered difference between two nodes
+
+       ! compute curvatures in each segment
+       ! ALLOCATE( phi( NPts ), Stat = IAllocStat )
+
+       ! - sign below because the node normal = ( -mx, -my, 1 )
+       DO ix = 1, NPts( 1 ) - 1
+          DO iy = 1, NPts( 2 ) - 1
+             ! z_xx (difference in x of z_x)
+
+             Bdry( ix, iy )%z_xx = -( Bdry( ix + 1, iy     )%Noden_unscaled( 1 ) - Bdry( ix, iy )%Noden_unscaled( 1 ) ) / &
+                                    ( Bdry( ix + 1, iy     )%x(              1 ) - Bdry( ix, iy )%x(              1 ) )
+
+             tvec = Bdry( ix + 1, iy )%x - Bdry( ix, iy )%x
+             Len  = SQRT( tvec( 1 ) ** 2 + tvec( 3 ) ** 2 )
+             Bdry( ix, iy )%kappa_xx = ( Bdry( ix + 1, iy )%phi_xx - Bdry( ix, iy )%phi_xx ) / Len ! this is curvature = dphi/ds
+
+             ! z_xy (difference in y of z_x)
+
+             Bdry( ix, iy )%z_xy = -( Bdry( ix    , iy + 1 )%Noden_unscaled( 1 ) - Bdry( ix, iy )%Noden_unscaled( 1 ) ) / &
+                                    ( Bdry( ix    , iy + 1 )%x(              2 ) - Bdry( ix, iy )%x(              2 ) )
+
+             tvec = Bdry( ix + 1, iy + 1 )%x - Bdry( ix, iy )%x
+             Len  = SQRT( tvec( 1 ) ** 2 + tvec( 2 ) ** 2 + tvec( 3 ) ** 2 )
+             Bdry( ix, iy )%kappa_xy = ( Bdry( ix + 1, iy + 1 )%phi_xy - Bdry( ix, iy )%phi_xy ) / Len ! this is curvature = dphi/ds
+
+             ! new
+             tvec = Bdry( ix, iy + 1 )%x - Bdry( ix, iy )%x
+             Len  = SQRT( tvec( 2 ) ** 2 + tvec( 3 ) ** 2 )
+             Bdry( ix, iy )%kappa_xy = ( Bdry( ix, iy + 1 )%phi_xx - Bdry( ix, iy )%phi_xx ) / Len ! this is curvature = dphi/ds
+
+             ! z_yy (difference in y of z_y)
+
+             Bdry( ix, iy )%z_yy = -( Bdry( ix    , iy + 1 )%Noden_unscaled( 2 ) - Bdry( ix, iy )%Noden_unscaled( 2 ) ) / &
+                                    ( Bdry( ix    , iy + 1 )%x(              2 ) - Bdry( ix, iy )%x(              2 ) )
+
+             tvec = Bdry( ix, iy + 1 )%x - Bdry( ix, iy )%x
+             Len  = SQRT( tvec( 2 ) ** 2 + tvec( 3 ) ** 2 )
+             Bdry( ix, iy )%kappa_yy = ( Bdry( ix, iy + 1 )%phi_yy - Bdry( ix, iy )%phi_yy ) / Len ! this is curvature = dphi/ds
+
+             ! introduce Len factor per Eq. 4.4.18 in Cerveny's book
+             Len = NORM2( Bdry( ix, iy )%Noden_unscaled )
+             Bdry( ix, iy )%z_xx = Bdry( ix, iy )%z_xx / Len
+             Bdry( ix, iy )%z_xy = Bdry( ix, iy )%z_xy / Len
+             Bdry( ix, iy )%z_yy = Bdry( ix, iy )%z_yy / Len
+          END DO
+       END DO
+    ELSE
+       Bdry%z_xx = 0
+       Bdry%z_xy = 0
+       Bdry%z_yy = 0
+
+       Bdry%kappa_xx = 0
+       Bdry%kappa_xy = 0
+       Bdry%kappa_yy = 0
+    END IF
+!!$    write( *, * ) 'ix=1', Bdry( 1, : )%kappa_xx
+!!$    write( *, * ) 'ix=1', Bdry( 1, : )%kappa_xy
+!!$    write( *, * ) 'ix=1', Bdry( 1, : )%kappa_yy
+!!$    write( *, * ) 'iy=1', Bdry( :, 1 )%kappa_xx
+!!$    write( *, * ) 'iy=1', Bdry( :, 1 )%kappa_xy
+!!$    write( *, * ) 'iy=1', Bdry( :, 1 )%kappa_yy
+!!$    write( *, * ) 'D'
+!!$    write( *, * ) Bdry( :, : )%z_xx
+!!$    write( *, * ) Bdry( :, : )%z_xy
+!!$    write( *, * ) Bdry( :, : )%z_yy
+!!$
+!!$    write( *, * ) 'kappa'
+!!$    write( *, * ) Bdry( :, : )%kappa_xx
+!!$    write( *, * ) Bdry( :, : )%kappa_xy
+!!$    write( *, * ) Bdry( :, : )%kappa_yy
+
   END SUBROUTINE ComputeBdryTangentNormal
 
 END MODULE bdry3Dmod
