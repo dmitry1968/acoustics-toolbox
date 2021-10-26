@@ -84,7 +84,7 @@ norms.o norms.mod: norms.f90
 	$(FC) -c $(FFLAGS) $< 
 
 
-ReadEnvironment.o: ReadEnvironment.f90 sspMod.mod
+readenvmod.mod ReadEnvironment.o: ReadEnvironment.f90 sspMod.mod
 splinec.o: splinec.f90
 twersky.o: twersky.f90
 weight.o: weight.f90
