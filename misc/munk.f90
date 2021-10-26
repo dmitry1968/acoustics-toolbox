@@ -1,4 +1,4 @@
-SUBROUTINE ANALYT( cP, cS, rho, Medium, N1, Freq, ATUNIT, Task )
+SUBROUTINE ANALYT( cP, cS, rho, Medium, N1 )
 
   !     Munk profile
 
@@ -8,20 +8,11 @@ SUBROUTINE ANALYT( cP, cS, rho, Medium, N1, Freq, ATUNIT, Task )
 
   IMPLICIT NONE
   INTEGER,           INTENT(IN)  :: Medium, N1
-  REAL     (KIND=8), INTENT(IN)  :: Freq
   REAL     (KIND=8), INTENT(OUT) :: rho( * )
   COMPLEX  (KIND=8), INTENT(OUT) :: cP( * ), cS( * )
-  CHARACTER (LEN=1), INTENT(IN ) :: ATUNIT
-  CHARACTER (LEN=8), INTENT(IN ) :: Task
   INTEGER                        :: i, N
   REAL     (KIND=8), PARAMETER   :: eps = 0.00737
   REAL     (KIND=8)              :: h, x, z
-
-  !     Initialization is only important for providing a print-out of
-  !     the SSP for the user.  Unfortunately it overruns the array
-  !     rho( 1 ) so we suppress it:
-
-  IF ( Task( 1 : 4 ) == 'INIT' ) RETURN
 
   N = N1 - 1
 

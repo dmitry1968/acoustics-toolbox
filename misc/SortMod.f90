@@ -1,50 +1,52 @@
 MODULE SortMod
 
   ! mbp 1/2015 incorporating subroutines from decades past
+  ! Does an insertion sort on a vector of real numbers
+
+  ! At the Ith step, the first I-1 positions contain a sorted
+  ! vector.  We shall insert the Ith value into its place in that
+  ! vector shifting up to produce a new vector of length I.
 
   IMPLICIT NONE
+  INTEGER, PRIVATE :: ILeft, IMiddle, IRight, I
 
   INTERFACE Sort
-     MODULE PROCEDURE Sort_sngl, Sort_dble
+     MODULE PROCEDURE Sort_sngl, Sort_dble, Sort_cmplx
   END INTERFACE Sort
 
 CONTAINS
 
-  SUBROUTINE Sort_sngl( X, N )
+  SUBROUTINE Sort_sngl( x, N )
 
-    ! Does an insertion sort on a vector of real numbers
-
-    ! At the Ith step, the first I-1 positions contain a sorted
-    ! vector.  We shall insert the Ith value into its place in that
-    ! vector shifting up to produce a new vector of length I.
-
-    INTEGER :: N, I, ILeft, IRight, IMid
-    REAL    :: X( * ), T
+    INTEGER, INTENT( IN ) :: N
+    REAL    :: x( * ), xTemp
 
     IF ( N == 1 ) RETURN
 
     DO I = 2, N
 
-       T = X( I )
+       xTemp = x( I )
 
-       IF ( T < X( 1 ) ) THEN          ! Goes in the first position
-          CALL ShiftIn_sngl( X, T, 1, I - 1 )
-       ELSE IF ( T < X( I - 1 ) ) THEN ! Binary search for its place
+       IF ( xTemp < x( 1 ) ) THEN
+          x( 2 : I ) = x( 1 : I - 1 )
+          x( 1 )     = xTemp  ! goes in the first position
+       ELSE IF ( xTemp < x( I - 1 ) ) THEN ! Binary search for its place
 
           IRight = I - 1
           ILeft  = 1
 
           DO WHILE ( IRight > ILeft + 1 )
-             IMid = ( ILeft + IRight ) / 2
-             IF ( T < X( IMid ) ) THEN
-                IRight = IMid
+             IMiddle = ( ILeft + IRight ) / 2
+             IF ( xTemp < x( IMiddle ) ) THEN
+                IRight = IMiddle
              ELSE
-                ILeft  = IMid
+                ILeft  = IMiddle
              ENDIF
           END DO
 
           ! Shift and insert
-          CALL ShiftIn_sngl( X, T, IRight, I - 1 )
+          x( IRight + 1 : I ) = x( IRight : I - 1 )
+          x( IRight ) = xTemp
 
        ENDIF
 
@@ -52,59 +54,39 @@ CONTAINS
 
   END SUBROUTINE Sort_sngl
 
-  SUBROUTINE ShiftIn_sngl( X, T, I1, I2 )
-
-    ! Shift values (I1, I2) one position to the right
-    ! and insert T at position I1
-
-    INTEGER :: I1, I2, K
-    REAL    :: X( * ), T
-
-    DO  K = I2, I1, -1
-       X( K + 1 ) = X( K )
-    END DO
-
-    X( I1 ) = T
-
-  END SUBROUTINE ShiftIn_sngl
-
   ! ________________________________________________________________________
 
-  SUBROUTINE Sort_dble( X, N )
+  SUBROUTINE Sort_dble( x, N )
 
-    ! Does an insertion sort on a vector of real numbers
-
-    ! At the Ith step, the first I-1 positions contain a sorted
-    ! vector.  We shall insert the Ith value into its place in that
-    ! vector shifting up to produce a new vector of length I.
-
-    INTEGER       :: N, I, ILeft, IRight, IMid
-    REAL (KIND=8) :: X( * ), T
+    INTEGER, INTENT( IN ) :: N
+    REAL (KIND=8) :: x( * ), xTemp
 
     IF ( N == 1 ) RETURN
 
     DO I = 2, N
 
-       T = X( I )
+       xTemp = x( I )
 
-       IF ( T < X( 1 ) ) THEN          ! Goes in the first position
-          CALL ShiftIn_dble( X, T, 1, I - 1 )
-       ELSE IF ( T < X( I - 1 ) ) THEN ! Binary search for its place
+       IF ( xTemp < x( 1 ) ) THEN
+          x( 2 : I ) = x( 1 : I - 1 )
+          x( 1 )     = xTemp  ! goes in the first position
+       ELSE IF ( xTemp < x( I - 1 ) ) THEN ! Binary search for its place
 
           IRight = I - 1
           ILeft  = 1
 
           DO WHILE ( IRight > ILeft + 1 )
-             IMid = ( ILeft + IRight ) / 2
-             IF ( T < X( IMid ) ) THEN
-                IRight = IMid
+             IMiddle = ( ILeft + IRight ) / 2
+             IF ( xTemp < x( IMiddle ) ) THEN
+                IRight = IMiddle
              ELSE
-                ILeft  = IMid
+                ILeft  = IMiddle
              ENDIF
           END DO
 
           ! Shift and insert
-          CALL ShiftIn_dble( X, T, IRight, I - 1 )
+          x( IRight + 1 : I ) = x( IRight : I - 1 )
+          x( IRight ) = xTemp
 
        ENDIF
 
@@ -112,21 +94,47 @@ CONTAINS
 
   END SUBROUTINE Sort_dble
 
-  SUBROUTINE ShiftIn_dble( X, T, I1, I2 )
+  ! ________________________________________________________________________
 
-    ! Shift values (I1, I2) one position to the right
-    ! and insert T at position I1
+  SUBROUTINE Sort_cmplx( x, N )
 
-    INTEGER       :: I1, I2, K
-    REAL (KIND=8) :: X( * ), T
+    ! Based on order of decreasing real part
 
-    DO  K = I2, I1, -1
-       X( K + 1 ) = X( K )
+    INTEGER, INTENT( IN ) :: N
+    COMPLEX (KIND=8)      :: x( N ), xTemp
+
+    IF ( N == 1 ) RETURN
+
+    DO I = 2, N
+
+       xTemp = x( I )
+
+       IF ( REAL( xTemp ) > REAL( x( 1 ) ) ) THEN
+          x( 2 : I ) = x( 1 : I - 1 )
+          x( 1 )     = xTemp  ! goes in the first position
+       ELSE IF ( REAL( xTemp ) > REAL( x( I - 1 ) ) ) THEN ! Binary search for its place
+
+          IRight = I - 1
+          ILeft  = 1
+
+          DO WHILE ( IRight > ILeft + 1 )
+             IMiddle = ( ILeft + IRight ) / 2
+
+             IF ( REAL( xTemp ) > REAL( x( IMiddle ) ) ) THEN
+                IRight = IMiddle
+             ELSE
+                ILeft  = IMiddle
+             END IF
+          END DO
+
+          x( IRight + 1 : I ) = x( IRight : I - 1 )
+          x( IRight ) = xTemp
+
+       END IF
+
     END DO
 
-    X( I1 ) = T
-
-  END SUBROUTINE ShiftIn_dble
+  END SUBROUTINE Sort_cmplx
 
 END MODULE SortMod
 
